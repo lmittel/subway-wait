@@ -1,0 +1,82 @@
+name: Refresh subway data and publish
+
+on:
+  workflow_dispatch:          # the "Run workflow" button
+  # Every Tuesday to Saturday at 13:30 UTC (9:30 am New York in summer, 8:30 am in winter),
+  # after subwaydata.nyc posts the previous day's archive around 7 am.
+  # Left off until subwaydata.nyc's maintainer has said a daily download is fine. To switch on,
+  # delete the # in front of the next two lines.
+  # schedule:
+  #   - cron: "30 13 * * 2-6"
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - run: pip install -r requirements.txt
+
+      # yesterday's archives, so only the new day is downloaded
+      - name: Restore cached archives
+        uses: actions/cache/restore@v4
+        with:
+          path: raw
+          key: raw-${{ github.run_id }}
+          restore-keys: raw-
+
+      - name: Fetch the newest weekdays
+        id: fetch
+        run: python pipeline/fetch.py
+
+      - name: Build the data
+        run: python pipeline/build_data.py
+
+      - name: Check the data
+        run: python pipeline/check_data.py
+
+      - name: Assemble the page
+        run: python page/assemble.py
+
+      - name: Install a headless browser
+        run: python -m playwright install --with-deps chromium
+
+      - name: Check every view of the page
+        run: python pipeline/check_render.py
+
+      - name: Save archives for tomorrow
+        if: always() && steps.fetch.outcome == 'success'
+        uses: actions/cache/save@v4
+        with:
+          path: raw
+          key: raw-${{ github.run_id }}
+
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: site
+
+  # runs only if every check above passed; otherwise the page already online stays as it was
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4

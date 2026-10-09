@@ -1,0 +1,237 @@
+<body>
+<div class="rail" aria-hidden="false">
+  <nav aria-label="Stops on this page">
+    <div class="spine"></div>
+    <ol id="rail-list"></ol>
+  </nav>
+</div>
+
+<header class="tunnel" id="top">
+  <div class="tunnel-in">
+    <div class="hero-left">
+      <h1><span class="long squeezed" id="h-long">Longer</span><br>than<br>average</h1>
+      <div class="edge-strip" aria-hidden="true"></div>
+      <p class="q" id="hero-q"></p>
+      <div class="guess">
+        <div class="guess-top"><span class="guess-lab">Your guess</span><span class="led big" id="guess-v">2.6 min</span></div>
+        <div class="ruler"><canvas id="cv-ruler" aria-hidden="true"></canvas><input type="range" id="guess" min="0" max="8" step="0.1" value="2.6" aria-label="Your guess for the average wait, in minutes"></div>
+        <button class="go" id="guess-go" type="button">Check my guess</button>
+        <div class="reveal" id="guess-out" aria-live="polite"></div>
+      </div>
+    </div>
+    <div class="hero-right">
+      <div class="marey-box"><canvas id="cv-marey" role="img" aria-label="Train graph: every train on the chosen line on a weekday morning, with your platform marked in yellow"></canvas></div>
+      <div class="marey-cap" id="marey-cap"></div>
+    </div>
+  </div>
+</header>
+
+<div class="dest" id="dest">
+  <div class="dest-in">
+    <button class="dest-now" id="dest-now" type="button" aria-expanded="false" aria-controls="picker">
+      <span class="bullet" id="dest-bullet">A</span>
+      <span class="dest-txt" id="dest-txt"></span>
+      <span class="dest-chg">Change</span>
+    </button>
+    <span class="dest-sp"></span>
+    <div class="seg" role="group" aria-label="Which stops to show">
+      <button type="button" id="ride-local" aria-pressed="true">Local: all stops</button>
+      <button type="button" id="ride-express" aria-pressed="false">Express</button>
+    </div>
+    <button class="theme-b" id="theme-b" type="button" aria-label="Switch light or dark"><svg width="16" height="16" viewBox="0 0 16 16" aria-hidden="true"><circle cx="8" cy="8" r="6.4" fill="none" stroke="currentColor" stroke-width="1.6"/><path d="M8 1.6a6.4 6.4 0 0 1 0 12.8z" fill="currentColor"/></svg></button>
+  </div>
+  <div class="picker" id="picker">
+    <div class="pk-row"><span class="pk-lab">Line</span><div id="pk-lines" class="row" style="gap:10px 14px"></div></div>
+    <div class="pk-row"><span class="pk-lab">Direction</span><div id="pk-dir" class="row" style="gap:8px"></div></div>
+    <div class="pk-row"><span class="pk-lab">When</span><div id="pk-win" class="row" style="gap:8px"></div></div>
+  </div>
+</div>
+
+<main>
+  <section class="stop-sec express" id="s-trains" data-rail="Ask the trains">
+    <div class="sign"><h2>Ask the trains</h2><span class="kind"><i class="e"></i>Express stop</span></div>
+    <p class="idea">Stand on the platform with a stopwatch and time the gaps between trains. <span class="k">Every gap counts once.</span></p>
+    <div class="panel">
+      <canvas id="cv-strip" role="img" aria-label="Arrival times on one weekday at the chosen platform, with the gaps between trains"></canvas>
+      <canvas id="cv-hgaps" role="img" aria-label="Histogram of gaps between trains over ten weekdays"></canvas>
+      <div class="readout" id="ro-trains"></div>
+      <p class="note" id="n-trains"></p>
+    </div>
+  </section>
+
+
+  <section class="stop-sec local" id="s-cv" data-rail="What CV measures">
+    <div class="sign"><h2>What CV measures</h2><span class="kind"><i class="l"></i>Local stop</span></div>
+    <p class="idea">Some lines run every 3 minutes, others every 10, so their gaps can't be compared as they stand. <span class="k">Stretch each line's clock until its average gap is the same length. What is left is unevenness, and the CV measures it.</span></p>
+    <div class="panel">
+      <div class="ctl" style="margin-top:0"><div class="seg2" role="group" aria-label="Which clock"><button type="button" id="cvc-real" aria-pressed="true">Real clock</button><button type="button" id="cvc-own" aria-pressed="false">Each line's own clock</button></div></div>
+      <canvas id="cv-cvrows" role="img" aria-label="One morning of arrivals on several lines, on the real clock or rescaled so every line's average gap has the same length"></canvas>
+      <div class="formula" id="f-cv"></div>
+      <p class="note" id="n-cv"></p>
+    </div>
+  </section>
+
+  <section class="stop-sec express" id="s-riders" data-rail="Ask the riders">
+    <div class="sign"><h2>Ask the riders</h2><span class="kind"><i class="e"></i>Express stop</span></div>
+    <p class="idea">Riders land like darts thrown at the timeline, at moments that have nothing to do with the trains. <span class="k">That is the page's one assumption about riders.</span> A long gap catches more darts than a short one, so ask each rider how long their gap was.</p>
+    <div class="panel">
+      <div class="ctl" style="margin-top:0"><div class="seg2" role="group" aria-label="How riders choose when to arrive"><button type="button" id="r-moment" aria-pressed="true">Riders pick a moment</button><button type="button" id="r-train" aria-pressed="false">Riders pick a train</button></div></div>
+      <div class="keys"><span><i class="sw trains"></i>gaps, as the trains report them</span><span><i class="sw riders"></i>gaps, as the riders report them</span></div>
+      <canvas id="cv-wall" role="img" aria-label="Ten weekday timelines; riders arrive at random and stack up above the train that picks them up"></canvas>
+      <div class="ctl"><button class="btn primary" id="r-go" type="button">Let riders in</button><button class="btn" id="r-more" type="button">Add 5,000 riders</button><button class="btn" id="r-reset" type="button">Empty the platforms</button><span class="sub num" id="r-count"></span></div>
+    </div>
+    <div class="panel">
+      <canvas id="cv-hpair" role="img" aria-label="Two histograms: gap lengths counted once per train, and gap lengths counted once per rider"></canvas>
+      <div class="readout" id="ro-riders"></div>
+      <p class="note" id="n-riders"></p>
+    </div>
+  </section>
+
+
+  <section class="stop-sec local" id="s-machine" data-rail="Size-bias machine">
+    <div class="sign"><h2>The size-bias machine</h2><span class="kind"><i class="l"></i>Local stop</span></div>
+    <p class="idea">Pick any distribution of sizes, or draw your own, then weight every value by its size. <span class="k">That is size bias, and it is all the riders did.</span></p>
+    <div class="panel">
+      <div id="mx-fams" class="mx-fams"></div>
+      <div id="mx-params" class="mx-params"></div>
+      <div class="keys"><span><i class="sw trains"></i><span class="tx">X</span>: each value counted once</span><span><i class="sw riders"></i><span class="tx">X^*</span>: each value counted by its size</span><span><i class="sw wait"></i>the wait, if <span class="tx">X</span> were gaps between trains</span></div>
+      <canvas id="cv-mx" role="img" aria-label="The chosen distribution and its size-biased version"></canvas>
+      <div class="ctl"><button class="btn primary" id="mx-go" type="button">Size-bias it</button><button class="btn" id="mx-again" type="button">Again</button><button class="btn" id="mx-undo" type="button">Start over</button><button class="btn" id="mx-wait" type="button" aria-pressed="false">Show the wait</button></div>
+      <div class="formula mx-name" id="mx-name"></div>
+      <div class="readout" id="ro-mx"></div>
+      <p class="note" id="n-mx"></p>
+    </div>
+    <div class="panel">
+      <p class="cap" id="mx-pair"></p>
+      <div class="mx-three"><canvas id="cv-mx-mean" role="img" aria-label="The two means"></canvas><canvas id="cv-mx-cdf" role="img" aria-label="The two survival functions"></canvas><canvas id="cv-mx-ratio" role="img" aria-label="The likelihood ratio, a straight line"></canvas></div>
+    </div>
+  </section>
+
+  <section class="stop-sec local" id="s-crowd" data-rail="The crowded car">
+    <div class="sign"><h2>The crowded car</h2><span class="kind"><i class="l"></i>Local stop</span></div>
+    <p class="idea">A train that ends a long gap picks up everyone who arrived during it. <span class="k">The average rider's train is fuller than the average train.</span></p>
+    <div class="panel">
+      <canvas id="cv-crowd" role="img" aria-label="Every train on one weekday, filled with the riders it picked up"></canvas>
+      <div class="readout" id="ro-crowd"></div>
+      <p class="note" id="n-crowd"></p>
+    </div>
+  </section>
+
+  <section class="stop-sec express" id="s-wait" data-rail="Your wait">
+    <div class="sign"><h2>Your wait</h2><span class="kind"><i class="e"></i>Express stop</span></div>
+    <p class="idea">You land somewhere inside your gap, uniformly at random, so you wait half of <i>your</i> gap on average. <span class="k">Half of a long gap, not half of the average one.</span></p>
+    <div class="panel">
+      <div class="keys"><span><i class="sw wait"></i><span id="saw-key">wait if you arrived at that moment</span></span><span class="phone"><i class="sw dash led"></i>average wait</span><span class="phone"><i class="sw dash steel"></i>half the average gap</span></div>
+      <canvas id="cv-saw" role="img" aria-label="Sawtooth: the wait for a rider arriving at each moment; each gap forms a triangle. Trains can be dragged."></canvas>
+      <div class="ctl"><button class="btn" id="saw-even" type="button">Space the trains evenly</button><button class="btn" id="saw-bunch" type="button">Bunch them in pairs</button><button class="btn" id="saw-reset" type="button">Back to the real trains</button><button class="btn" id="saw-back" type="button" aria-pressed="false">Look back instead</button></div>
+      <div class="readout" id="ro-saw"></div>
+      <p class="note" id="n-saw"></p>
+    </div>
+    <div class="panel">
+      <div class="keys"><span><i class="sw trains"></i>the gaps</span><span><i class="sw riders"></i>the gap you land in</span><span><i class="sw wait"></i>your wait</span></div>
+      <canvas id="cv-three" role="img" aria-label="Three distributions on one axis: gaps, the gap a rider lands in, and the rider's wait"></canvas>
+      <div class="formula" id="f-three"></div>
+      <p class="note" id="n-three"></p>
+      <details class="deriv" id="d-three"><summary>The algebra: how grey, yellow and orange are related</summary><div class="deriv-b" id="d-three-b"></div></details>
+    </div>
+    <div class="panel">
+      <p class="pq">Is your wait just the yellow curve, halved?</p>
+      <div class="ctl" style="margin-top:0"><div class="seg2" role="group" aria-label="Where riders stand in their gap"><button type="button" id="cl-half" aria-pressed="true">Everyone waits exactly half</button><button type="button" id="cl-any" aria-pressed="false">Riders land anywhere</button></div></div>
+      <div class="keys"><span><i class="sw outline"></i>gaps, as the trains report them</span><span><i class="sw riders"></i>the gap riders land in</span><span><i class="sw wait"></i>their wait</span></div>
+      <canvas id="cv-cloud" role="img" aria-label="One dot per rider: across, the gap the rider landed in; up, the rider's wait. The shadows on the top and right edges are the two distributions."></canvas>
+      <div class="readout" id="ro-cloud"></div>
+      <p class="note" id="n-cloud"></p>
+    </div>
+  </section>
+
+
+  <section class="stop-sec local" id="s-real" data-rail="Is that gap real?">
+    <div class="sign"><h2>Is that gap real?</h2><span class="kind"><i class="l"></i>Local stop</span></div>
+    <p class="idea">A very long gap looks like a recording error. But long gaps are exactly what riders feel. <span class="k">Check a gap against other evidence before you delete it.</span></p>
+    <div class="panel">
+      <canvas id="cv-hole" role="img" aria-label="The train graph around the morning's longest gap, every station on the line"></canvas>
+      <p class="note" id="n-hole"></p>
+    </div>
+    <div class="panel">
+      <div class="slider"><label for="tr-x">Throw out every gap longer than</label><input type="range" id="tr-x" min="1" max="30" step="0.5" value="15"><output id="tr-x-v"></output></div>
+      <canvas id="cv-trim" role="img" aria-label="How the mean gap and the average wait change as long gaps are thrown out"></canvas>
+      <div class="readout" id="ro-trim"></div>
+      <p class="note" id="n-trim"></p>
+    </div>
+  </section>
+
+  <section class="stop-sec local" id="s-chaos" data-rail="Clockwork to chaos">
+    <div class="sign"><h2>Clockwork to chaos</h2><span class="kind"><i class="l"></i>Local stop</span></div>
+    <p class="idea">Keep the average gap fixed and change only how uneven the gaps are.</p>
+    <div class="panel">
+      <div class="keys"><span><i class="sw trains"></i>the gaps</span><span><i class="sw riders"></i>the gap you land in</span><span><i class="sw wait"></i>your wait</span></div>
+      <canvas id="cv-chaos" role="img" aria-label="Gamma-distributed gaps with adjustable unevenness"></canvas>
+      <div class="slider"><label for="chaos-cv">Unevenness (CV)</label><input type="range" id="chaos-cv" min="0.05" max="1.5" step="0.01" value="0.5"><output id="chaos-cv-v"></output></div>
+      <div class="ctl" id="chaos-marks"></div>
+      <div class="readout" id="ro-chaos"></div>
+      <p class="note" id="n-chaos"></p>
+    </div>
+  </section>
+
+  <section class="stop-sec local" id="s-giveup" data-rail="Should you give up?">
+    <div class="sign"><h2>Should you give up?</h2><span class="kind"><i class="l"></i>Local stop</span></div>
+    <p class="idea">You have already waited a while. Is the train now more likely to be just around the corner, or less? <span class="k">And when, if ever, should you walk away?</span></p>
+    <div class="panel">
+      <div class="led-sign"><canvas id="cv-led" aria-hidden="true"></canvas><span class="sr" id="led-sr" aria-live="polite"></span></div>
+      <div class="slider" style="margin-top:12px"><label for="gu-t">You've waited</label><input type="range" id="gu-t" min="0" max="20" step="0.1" value="0"><output id="gu-t-v"></output></div>
+      <div class="slider" style="margin-top:4px"><label for="gu-c">Giving up (walking, a bus, a cab) gets you there later by</label><input type="range" id="gu-c" min="1" max="30" step="0.5" value="10"><output id="gu-c-v">10 min</output></div>
+    </div>
+    <div class="panel">
+      <p class="pq">Is the train getting closer?</p>
+      <div class="keys" id="gu-keys"></div>
+      <canvas id="cv-giveup" role="img" aria-label="Expected remaining wait against time already waited, for the chosen line and for two reference cases with the same average gap"></canvas>
+      <p class="note" id="n-giveup"></p>
+    </div>
+    <div class="panel">
+      <p class="pq">When to give up</p>
+      <div class="keys" id="gu-keys2"></div>
+      <canvas id="cv-hazard" role="img" aria-label="The chance per minute that the train arrives, against time already waited, compared with the break-even line set by your fallback"></canvas>
+      <p class="note" id="n-hazard"></p>
+      <div class="gu-board" id="gu-board" aria-label="Every line at this fallback"></div>
+      <details class="deriv" id="d-gu"><summary>The algebra of giving up</summary><div class="deriv-b" id="d-gu-b"></div></details>
+    </div>
+  </section>
+
+  <section class="stop-sec express" id="s-lines" data-rail="Every line">
+    <div class="sign"><h2>Every line</h2><span class="kind"><i class="e"></i>Express stop</span></div>
+    <p class="idea">Each line, both directions, at one busy station. <span class="k">Right means longer gaps; up means more uneven gaps.</span> The curves mark equal average waits.</p>
+    <div class="panel">
+      <div class="ctl" style="margin-top:0"><button class="btn" id="ln-sched" type="button" aria-pressed="false">Show the timetable</button><span class="sub" id="ln-hint">Tap a bullet to ride that line.</span></div>
+      <canvas id="cv-lines" role="img" aria-label="Every line plotted by average gap and unevenness, with curves of equal average wait"></canvas>
+      <canvas id="cv-rank" role="img" aria-label="Lines ranked by the extra wait caused by uneven gaps"></canvas>
+      <p class="note" id="n-lines"></p>
+    </div>
+  </section>
+
+  <section class="stop-sec local" id="s-bunch" data-rail="Why trains bunch">
+    <div class="sign"><h2>Why trains bunch</h2><span class="kind"><i class="l"></i>Local stop</span></div>
+    <p class="idea">A late train finds more people waiting, so it stops longer and falls further behind. The train behind it finds fewer, stops briefly and catches up. <span class="k">This is a toy line, not data.</span></p>
+    <div class="panel">
+      <div class="twocol">
+        <canvas id="cv-ring" role="img" aria-label="Toy loop line with six trains and twelve stations"></canvas>
+        <div>
+          <canvas id="cv-bunch" role="img" aria-label="Unevenness of the gaps and the average wait over time in the toy line"></canvas>
+          <div class="slider" style="margin-top:10px"><label for="b-board">Seconds per boarding rider</label><input type="range" id="b-board" min="0" max="1.5" step="0.05" value="1.2"><output id="b-board-v"></output></div>
+          <div class="ctl"><button class="btn primary" id="b-run" type="button">Pause</button><button class="btn" id="b-kick" type="button">Delay one train</button><button class="btn" id="b-hold" type="button" aria-pressed="false">Hold trains to even gaps</button><button class="btn" id="b-reset" type="button">Reset</button></div>
+          <div class="readout" id="ro-bunch"></div>
+        </div>
+      </div>
+      <p class="note" id="n-bunch"></p>
+    </div>
+  </section>
+
+  <section class="terminal express" id="s-end" data-rail="End of the line">
+    <div class="end-sign">
+      <h2>End of the line</h2>
+      <div class="formula" id="f-end"></div>
+      <p id="end-lines" style="margin:10px 0 0;max-width:70ch;color:#cfd4d8"></p>
+    </div>
+    <div class="credits" id="credits"></div>
+    <footer>© 2026 Louis Mittel · <a rel="license noopener" href="https://creativecommons.org/licenses/by-nc/4.0/" target="_blank">CC BY-NC 4.0</a></footer>
+  </section>
+</main>

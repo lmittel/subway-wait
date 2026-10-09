@@ -1,0 +1,45 @@
+name: Refresh timetable
+
+# The page compares real gaps with the MTA's published timetable. The timetable changes a few times
+# a year, so once a month this re-reads the MTA's static GTFS and commits static/static.json if it changed.
+# The next daily refresh picks it up.
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "17 14 2 * *"     # the 2nd of each month
+
+permissions:
+  contents: write
+
+jobs:
+  timetable:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - run: pip install -r requirements.txt
+
+      - name: Download the MTA's static GTFS
+        run: curl -fsSL --retry 3 -o gtfs_subway.zip "https://rrgtfsfeeds.s3.amazonaws.com/gtfs_subway.zip"
+
+      - name: Rebuild static/static.json
+        run: python pipeline/gtfs_static.py gtfs_subway.zip
+
+      # Always commit at least the date checked: GitHub switches off scheduled workflows in a public
+      # repository after 60 days with no commits, and this monthly commit keeps the daily refresh alive.
+      - name: Commit
+        run: |
+          date -u +"%Y-%m-%d" > static/checked.txt
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add static/static.json static/checked.txt
+          if git diff --cached --quiet static/static.json; then msg="Timetable checked, unchanged"; else msg="Refresh timetable from the MTA's GTFS"; fi
+          git commit -m "$msg"
+          git push
