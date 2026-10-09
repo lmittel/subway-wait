@@ -264,14 +264,22 @@
       ctx.strokeStyle = C.muted; ctx.lineWidth = 1; line(ctx, x0, axisY + 0.5, x1, axisY + 0.5); text(ctx, "t", x1, axisY + 16, 12, C.muted, "right", 500); }
     // 3. likelihood ratio: f_b / f_a = x / E[X_a], a straight line through 0
     { const cv = $("cv-mx-ratio"), { ctx, W, H } = fit(cv, 150), x0 = 30, x1 = W - 6, top = 26, axisY = 128, rmax = 3, sx = (v) => x0 + v / xmax * (x1 - x0), sy = (v) => axisY - Math.min(v, rmax) / rmax * (axisY - top);
-      text(ctx, "Larger in likelihood ratio: f" + "*".repeat(b) + " / f" + "*".repeat(a) + " = x / E " + nmA, 0, 14, 13, C.ink, "left", 700);
+      text(ctx, "Larger in likelihood ratio: f" + "*".repeat(b) + "(x) / f" + "*".repeat(a) + "(x) = x / E " + nmA, 0, 14, 13, C.ink, "left", 700);
       yGrid(ctx, x0, x1, [0, 1, 2, 3], sy, (v) => String(v));
       ctx.strokeStyle = C.muted; ctx.setLineDash([3, 3]); line(ctx, x0, sy(1), x1, sy(1)); ctx.setLineDash([]);
-      // the ratio is defined where the "before" distribution has mass
-      if (D.kind === "d") { const P = D.pmf(a); for (let k = 0; k <= Math.round(xmax); k++) { if (!(P[k] > 1e-12)) continue; ctx.fillStyle = yel; ctx.beginPath(); ctx.arc(x0 + k / xmax * (x1 - x0), sy(k / ma), 3, 0, 6.283); ctx.fill(); } }
-      else { const f = D.dens(a); ctx.strokeStyle = yel; ctx.lineWidth = 2.4; ctx.beginPath(); let on = false; for (let i = 0; i <= 200; i++) { const x = xmax * i / 200; if (f(x) > 1e-12 && x / ma <= rmax * 1.02) { if (on) ctx.lineTo(sx(x), sy(x / ma)); else { ctx.moveTo(sx(x), sy(x / ma)); on = true; } } else on = false; } ctx.stroke(); }
-      const xm = sx(ma); ctx.fillStyle = C.steel; ctx.beginPath(); ctx.arc(xm, sy(1), 4, 0, 6.283); ctx.fill();
-      tlab(ctx, "= 1 at E " + nmA, xm, sy(1) - 9, 11.5, C["ink-2"], 600, x0, x1);
+      // the ratio is defined where the "before" distribution has mass; below 1 a value gets rarer, above 1 commoner
+      if (D.kind === "d") { const P = D.pmf(a); for (let k = 0; k <= Math.round(xmax); k++) { if (!(P[k] > 1e-12)) continue; const x = x0 + k / xmax * (x1 - x0), r = k / ma, up = r >= 1;
+          ctx.strokeStyle = up ? yel : C.steel; ctx.lineWidth = 2; line(ctx, x, sy(1), x, sy(r)); ctx.fillStyle = up ? yel : C.steel; ctx.beginPath(); ctx.arc(x, sy(r), 3, 0, 6.283); ctx.fill(); } }
+      else { const f = D.dens(a), pts = []; for (let i = 0; i <= 200; i++) { const x = xmax * i / 200; if (f(x) > 1e-12 && x / ma <= rmax * 1.02) pts.push(x); }
+        if (pts.length > 1) {
+          const lo = pts[0], hi = pts[pts.length - 1];
+          if (lo < ma) { ctx.beginPath(); ctx.moveTo(sx(lo), sy(1)); ctx.lineTo(sx(lo), sy(lo / ma)); ctx.lineTo(sx(Math.min(ma, hi)), sy(Math.min(ma, hi) / ma)); ctx.lineTo(sx(Math.min(ma, hi)), sy(1)); ctx.closePath(); ctx.fillStyle = rgba(C.rgb.steel, 0.2); ctx.fill(); }
+          if (hi > ma) { ctx.beginPath(); ctx.moveTo(sx(Math.max(ma, lo)), sy(1)); ctx.lineTo(sx(Math.max(ma, lo)), sy(Math.max(ma, lo) / ma)); ctx.lineTo(sx(hi), sy(hi / ma)); ctx.lineTo(sx(hi), sy(1)); ctx.closePath(); ctx.fillStyle = rgba(C.rgb.edge, 0.35); ctx.fill(); }
+          ctx.strokeStyle = yel; ctx.lineWidth = 2.4; ctx.beginPath(); let on = false; for (let i = 0; i <= 200; i++) { const x = xmax * i / 200; if (f(x) > 1e-12 && x / ma <= rmax * 1.02) { if (on) ctx.lineTo(sx(x), sy(x / ma)); else { ctx.moveTo(sx(x), sy(x / ma)); on = true; } } else on = false; } ctx.stroke(); } }
+      const xm = sx(ma); ctx.fillStyle = C.ink; ctx.beginPath(); ctx.arc(xm, sy(1), 4, 0, 6.283); ctx.fill();
+      { const lab = "1 at x = E " + nmA + ": the densities cross", lw = tw(ctx, lab, 11.5, 600); halo(ctx, lab, clamp(xm, x0 + lw / 2 + 1, x1 - lw / 2 - 1), sy(1) - 9, 11.5, C["ink-2"], "center", 600); }
+      if (xm - x0 > 70) text(ctx, "rarer", x0 + 4, sy(1) + 15, 11.5, C.steel, "left", 700);
+      if (x1 - xm > 70) text(ctx, "commoner", x1 - 2, sy(1) + 15, 11.5, yel, "right", 700);
       ctx.strokeStyle = C.muted; ctx.lineWidth = 1; line(ctx, x0, axisY + 0.5, x1, axisY + 0.5); text(ctx, "x", x1, axisY + 16, 12, C.muted, "right", 500); }
   }
 

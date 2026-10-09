@@ -9,9 +9,10 @@
 <header class="tunnel" id="top">
   <div class="tunnel-in">
     <div class="hero-left">
-      <h1><span class="long squeezed" id="h-long">Longer</span><br>than<br>average</h1>
+      <h1>Inspection<br>paradox</h1>
       <div class="edge-strip" aria-hidden="true"></div>
       <p class="q" id="hero-q"></p>
+      <button class="hero-own" id="hero-own" type="button">Use your own station</button>
       <div class="guess">
         <div class="guess-top"><span class="guess-lab">Your guess</span><span class="led big" id="guess-v">2.6 min</span></div>
         <div class="ruler"><canvas id="cv-ruler" aria-hidden="true"></canvas><input type="range" id="guess" min="0" max="8" step="0.1" value="2.6" aria-label="Your guess for the average wait, in minutes"></div>
@@ -41,7 +42,9 @@
     <button class="theme-b" id="theme-b" type="button" aria-label="Switch light or dark"><svg width="16" height="16" viewBox="0 0 16 16" aria-hidden="true"><circle cx="8" cy="8" r="6.4" fill="none" stroke="currentColor" stroke-width="1.6"/><path d="M8 1.6a6.4 6.4 0 0 1 0 12.8z" fill="currentColor"/></svg></button>
   </div>
   <div class="picker" id="picker">
+    <div class="pk-row"><label class="pk-lab" for="pk-q">Your station</label><div class="pk-find"><input id="pk-q" type="search" placeholder="Type a station, like Bedford Av or 86 St" autocomplete="off" spellcheck="false" aria-controls="pk-res"><div id="pk-res" class="pk-res" role="list"></div></div></div>
     <div class="pk-row"><span class="pk-lab">Line</span><div id="pk-lines" class="row" style="gap:10px 14px"></div></div>
+    <div class="pk-row"><label class="pk-lab" for="pk-stop">Station</label><div class="row" style="gap:8px 12px"><select id="pk-stop"></select><span id="pk-msg" class="pk-msg" aria-live="polite"></span></div></div>
     <div class="pk-row"><span class="pk-lab">Direction</span><div id="pk-dir" class="row" style="gap:8px"></div></div>
     <div class="pk-row"><span class="pk-lab">When</span><div id="pk-win" class="row" style="gap:8px"></div></div>
   </div>
@@ -104,6 +107,7 @@
     <div class="panel">
       <p class="cap" id="mx-pair"></p>
       <div class="mx-three"><canvas id="cv-mx-mean" role="img" aria-label="The two means"></canvas><canvas id="cv-mx-cdf" role="img" aria-label="The two survival functions"></canvas><canvas id="cv-mx-ratio" role="img" aria-label="The likelihood ratio, a straight line"></canvas></div>
+      <p class="note">The right-hand picture is the strongest of the three. Size bias multiplies each value's probability by <span class="tx">x / E X</span>, a line through 0 that rises past 1 exactly at the mean, which is where the two densities above cross. Values below the mean get rarer, values above get commoner, and 0 vanishes. Because the ratio rises everywhere, this holds inside any range too: among gaps of 4 to 6 minutes, riders still land in the longer ones more often. It implies the other two pictures.</p>
     </div>
   </section>
 
@@ -179,7 +183,10 @@
     <div class="panel">
       <div class="led-sign"><canvas id="cv-led" aria-hidden="true"></canvas><span class="sr" id="led-sr" aria-live="polite"></span></div>
       <div class="slider" style="margin-top:12px"><label for="gu-t">You've waited</label><input type="range" id="gu-t" min="0" max="20" step="0.1" value="0"><output id="gu-t-v"></output></div>
-      <div class="slider" style="margin-top:4px"><label for="gu-c">Giving up (walking, a bus, a cab) gets you there later by</label><input type="range" id="gu-c" min="1" max="30" step="0.5" value="10"><output id="gu-c-v">10 min</output></div>
+      <div class="slider" style="margin-top:4px"><label for="gu-ride">Your train ride</label><input type="range" id="gu-ride" min="1" max="60" step="1" value="15"><output id="gu-ride-v">15 min</output></div>
+      <div class="slider" style="margin-top:4px"><label for="gu-alt">The other way, door to door</label><input type="range" id="gu-alt" min="1" max="90" step="1" value="25"><output id="gu-alt-v">25 min</output></div>
+      <p class="note" id="gu-diff" style="margin-top:6px"></p>
+      <div class="readout" id="ro-gu"></div>
     </div>
     <div class="panel">
       <p class="pq">Is the train getting closer?</p>
@@ -192,7 +199,7 @@
       <div class="keys" id="gu-keys2"></div>
       <canvas id="cv-hazard" role="img" aria-label="The chance per minute that the train arrives, against time already waited, compared with the break-even line set by your fallback"></canvas>
       <p class="note" id="n-hazard"></p>
-      <div class="gu-board" id="gu-board" aria-label="Every line at this fallback"></div>
+      <div class="gu-board" id="gu-board" aria-label="Every line, with the same extra time for the other way"></div>
       <details class="deriv" id="d-gu"><summary>The algebra of giving up</summary><div class="deriv-b" id="d-gu-b"></div></details>
     </div>
   </section>
@@ -208,20 +215,48 @@
     </div>
   </section>
 
+  <section class="stop-sec express" id="s-down" data-rail="Down the line">
+    <div class="sign"><h2>Down the line</h2><span class="kind"><i class="e"></i>Express stop</span></div>
+    <p class="idea">Trains usually leave the terminal evenly spaced, and delays along the way push them together. <span class="k">So the same trains can mean a longer wait farther down the line.</span></p>
+    <div class="panel">
+      <div class="keys"><span><i class="sw solid-led"></i>average wait</span><span><i class="sw dash steel"></i>half the average gap</span><span><i class="sw wait"></i>the difference: the cost of uneven gaps</span></div>
+      <canvas id="cv-down" role="img" aria-label="Average wait and half the average gap at every stop along the route; choose a stop to make it your station"></canvas>
+      <p class="note" id="n-down"></p>
+    </div>
+  </section>
+
   <section class="stop-sec local" id="s-bunch" data-rail="Why trains bunch">
     <div class="sign"><h2>Why trains bunch</h2><span class="kind"><i class="l"></i>Local stop</span></div>
-    <p class="idea">A late train finds more people waiting, so it stops longer and falls further behind. The train behind it finds fewer, stops briefly and catches up. <span class="k">This is a toy line, not data.</span></p>
+    <p class="idea">A late train finds more people waiting, so it stops longer and falls further behind. The train behind it finds fewer, stops briefly and catches up. <span class="k">This line is simulated, not data.</span></p>
     <div class="panel">
       <div class="twocol">
-        <canvas id="cv-ring" role="img" aria-label="Toy loop line with six trains and twelve stations"></canvas>
+        <canvas id="cv-ring" role="img" aria-label="Simulated loop line with six trains and twelve stations"></canvas>
         <div>
-          <canvas id="cv-bunch" role="img" aria-label="Unevenness of the gaps and the average wait over time in the toy line"></canvas>
+          <canvas id="cv-bunch" role="img" aria-label="Unevenness of the gaps and the average wait over time on the simulated line"></canvas>
           <div class="slider" style="margin-top:10px"><label for="b-board">Seconds per boarding rider</label><input type="range" id="b-board" min="0" max="1.5" step="0.05" value="1.2"><output id="b-board-v"></output></div>
           <div class="ctl"><button class="btn primary" id="b-run" type="button">Pause</button><button class="btn" id="b-kick" type="button">Delay one train</button><button class="btn" id="b-hold" type="button" aria-pressed="false">Hold trains to even gaps</button><button class="btn" id="b-reset" type="button">Reset</button></div>
           <div class="readout" id="ro-bunch"></div>
         </div>
       </div>
       <p class="note" id="n-bunch"></p>
+    </div>
+  </section>
+
+  <section class="stop-sec local" id="s-proof" data-rail="Where the formula comes from">
+    <div class="sign"><h2>Where the formula comes from</h2><span class="kind"><i class="l"></i>Local stop</span></div>
+    <p class="idea">From darts on a strip of gaps to the formula at the end of the line, in ten moves. <span class="k">Each line of algebra is one change in the picture.</span></p>
+    <div class="panel pf" tabindex="-1">
+      <div class="pf-map" id="pf-map" role="group" aria-label="Steps of the derivation"></div>
+      <div class="pf-grid">
+        <div class="pf-alg">
+          <p class="pf-title" id="pf-title"></p>
+          <div class="pf-eq" id="pf-eq"></div>
+          <p class="pf-why" id="pf-why"></p>
+        </div>
+        <div class="pf-pic"><canvas id="cv-proof" role="img" aria-label="Step 1"></canvas></div>
+      </div>
+      <div class="ctl"><button class="btn" id="pf-back" type="button">Back</button><button class="btn primary" id="pf-next" type="button">Next step</button><button class="btn" id="pf-all" type="button" aria-pressed="false">Show every step</button></div>
+      <ol class="pf-list" id="pf-list" hidden></ol>
     </div>
   </section>
 

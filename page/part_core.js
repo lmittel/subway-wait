@@ -54,6 +54,78 @@
   const MAREY_DAY = META.mareyDay, MAREY_IDX = DAYS.indexOf(MAREY_DAY);
 
   // =====================================================================
+  // every station: each line's file (lines/<line>.js) holds all its platforms; it loads when first needed
+  // =====================================================================
+  const HOME = { SER: {}, SCH: {}, MAR: {} }, STOP = {}, LD = {};
+  LINES.forEach((r) => { HOME.SER[r] = SER[r]; HOME.SCH[r] = SCH[r]; HOME.MAR[r] = MAR[r]; STOP[r] = META.home[r]; });
+  const STN = META.stations || {};
+  const stopsOf = (r) => (META.stops && META.stops[r]) || [[META.home[r], 31, 31]];
+  function decodeLine(r) {
+    if (LD[r]) return LD[r];
+    const J = window.MTA_LINES && window.MTA_LINES[r]; if (!J) return null;
+    const out = { ser: { N: {}, S: {} }, sch: { N: {}, S: {} }, rows: { N: {}, S: {} }, pats: { N: [], S: [] } };
+    let R = reader(bytes(J.ser));
+    for (const d of ["N", "S"]) for (const row of J.dirs[d]) {
+      out.rows[d][row[0]] = { pat: row[1], here: row[2], missed: row[3] };
+      out.ser[d][row[0]] = DAYS.map((day) => {
+        const n = R.uv(), t = new Int32Array(n); let prev = 0;
+        for (let i = 0; i < n; i++) { prev += R.sv(); t[i] = prev; }
+        const nb = R.uv(), brk = new Set(); let pb = 0;
+        for (let i = 0; i < nb; i++) { pb += R.uv(); brk.add(pb); }
+        return { day, t, brk };
+      });
+    }
+    R = reader(bytes(J.sch));
+    for (const d of ["N", "S"]) for (const row of J.dirs[d]) { const n = R.uv(), t = new Int32Array(n); let prev = 0; for (let i = 0; i < n; i++) { prev += R.sv(); t[i] = prev; } out.sch[d][row[0]] = t; }
+    R = reader(bytes(J.mar));
+    for (const d of ["N", "S"]) { const np = R.uv(); for (let q = 0; q < np; q++) {
+      const ns = R.uv(), stops = []; for (let i = 0; i < ns; i++) stops.push(J.names[R.uv()]);
+      const km = []; let pk = 0; for (let i = 0; i < ns; i++) { pk += R.uv(); km.push(pk / 100); }
+      const nt = R.uv(), trips = [];
+      for (let j = 0; j < nt; j++) { const npt = R.uv(), pts = []; let k = 0, t = 6 * 3600; for (let i = 0; i < npt; i++) { k += R.sv(); t += R.sv(); pts.push([k, t]); } trips.push(pts); }
+      out.pats[d].push({ stops, km, trips, pids: (J.pids && J.pids[d] && J.pids[d][q]) || [] });
+    } }
+    return (LD[r] = out);
+  }
+  const LOADING = {};
+  function loadLine(r) {
+    if (decodeLine(r)) return Promise.resolve(LD[r]);
+    if (LOADING[r]) return LOADING[r];
+    return (LOADING[r] = new Promise((ok, fail) => {
+      const s = document.createElement("script"); s.src = "lines/" + r + ".js?v=" + ((META.lineVer || {})[r] || "");
+      s.onload = () => { delete LOADING[r]; decodeLine(r) ? ok(LD[r]) : fail(new Error("empty")); };
+      s.onerror = () => { delete LOADING[r]; s.remove(); fail(new Error("not found")); };
+      document.head.appendChild(s);
+    }));
+  }
+  const stopUsable = (r, pid) => pid === META.home[r] || !!(LD[r] && (LD[r].ser.N[pid] || LD[r].ser.S[pid]));
+  // point SER, SCH and MAR for line r at one of its stations
+  function applyStop(r, pid) {
+    if (!stopUsable(r, pid)) pid = META.home[r];
+    STOP[r] = pid;
+    if (pid === META.home[r]) { SER[r] = HOME.SER[r]; SCH[r] = HOME.SCH[r]; MAR[r] = HOME.MAR[r]; return; }
+    const L = LD[r], ser = {}, sch = {}, mar = {};
+    for (const d of ["N", "S"]) {
+      if (L.ser[d][pid]) ser[d] = L.ser[d][pid];
+      sch[d] = { Weekday: L.sch[d][pid] || new Int32Array(0), Sunday: new Int32Array(0) };
+      const row = L.rows[d][pid], p = row && row.pat >= 0 ? L.pats[d][row.pat] : null;
+      if (p) mar[d] = { stops: p.stops, km: p.km, here: row.here, trips: p.trips };
+    }
+    SER[r] = ser; SCH[r] = sch; MAR[r] = mar;
+  }
+  const stopName = (pid) => (STN[pid] ? STN[pid][0] : "");
+  const hiddenAt = (r, d) => (STOP[r] === META.home[r] ? (META.missed || {})[r + d] || 0 : ((LD[r] && LD[r].rows[d][STOP[r]]) || {}).missed || 0);
+  // walking distance is close enough to straight-line distance for "the same station complex"
+  function km(a, b) { const A = STN[a], B = STN[b]; if (!A || !B) return Infinity; const la = (A[1] + B[1]) / 2 * Math.PI / 180; return Math.hypot((A[1] - B[1]) * 111.2, (A[2] - B[2]) * 111.2 * Math.cos(la)); }
+  // switching lines: stay at the same station (or the one across the passageway) when the new line stops there
+  function carryStop(newLine) {
+    if (ST.stop === META.home[ST.line]) return META.home[newLine];
+    let best = META.home[newLine], bd = 0.4;
+    stopsOf(newLine).forEach(([pid]) => { const dd = pid === ST.stop ? 0 : km(pid, ST.stop); if (dd < bd) { bd = dd; best = pid; } });
+    return best;
+  }
+
+  // =====================================================================
   // words for lines, stations, directions and time windows
   // =====================================================================
   const WINS = [
@@ -66,7 +138,8 @@
   const WIN = Object.fromEntries(WINS.map((w) => [w.id, w]));
   const GROUPS = [["1", "2", "3"], ["4", "5", "6"], ["7"], ["A", "C", "E"], ["B", "D", "F", "M"], ["G"], ["J"], ["L"], ["N", "Q", "R", "W"], ["GS"]];
   const SHORT = { "42 St-Port Authority Bus Terminal": "42 St–Port Authority" };
-  const stationName = (r) => (SHORT[META.station[r]] || META.station[r]).replace(/-/g, "–");
+  const niceName = (nm) => (SHORT[nm] || nm).replace(/-/g, "–");
+  const stationName = (r) => niceName(r === ST.line ? stopName(ST.stop) || META.station[r] : META.station[r]);
   const sym = (r) => (r === "GS" ? "S" : r);
   const cap = (s) => s.charAt(0).toUpperCase() + s.slice(1);
   function trainsPhrase(r, d) {
@@ -99,9 +172,12 @@
     }
     return seg.length >= out.length ? seg : out;
   }
-  function pooled(r, d, w) {
-    const key = r + d + w; if (CACHE.has(key)) return CACHE.get(key);
-    const g = []; const per = SER[r][d]; let days = 0;
+  function pooled(r, d, w, home) {
+    const key = r + d + w + "|" + (home ? "home" : STOP[r]); if (CACHE.has(key)) return CACHE.get(key);
+    const h = poolSeries((home ? HOME.SER : SER)[r][d], w); CACHE.set(key, h); return h;
+  }
+  function poolSeries(per, w) {
+    const g = []; let days = 0;
     if (per) DAYINFO.forEach((di, k) => {
       if (!di.weekday) return;
       if (w === "late" && !di.earlyOk) return;
@@ -112,11 +188,11 @@
       }
       if (g.length > n0) days++;
     });
-    const h = Float64Array.from(g); h.days = days; CACHE.set(key, h); return h;
+    const h = Float64Array.from(g); h.days = days; return h;
   }
-  function schedGaps(r, d, w) {
+  function schedGaps(r, d, w, home) {
     // the timetable writes trips that run past midnight as 25:00, 26:00 ...; fold them back onto the clock
-    const raw = SCH[r][d].Weekday, W = WIN[w];
+    const raw = ((home ? HOME.SCH : SCH)[r][d] || {}).Weekday || new Int32Array(0), W = WIN[w];
     const t = Array.from(raw, (x) => (x >= 86400 ? x - 86400 : x)).sort((x, y) => x - y), g = [];
     for (let i = 0; i + 1 < t.length; i++) if (t[i] >= W.a && t[i + 1] <= W.b && t[i + 1] > t[i]) g.push((t[i + 1] - t[i]) / 60);
     return Float64Array.from(g);
@@ -132,15 +208,49 @@
   // =====================================================================
   // shared state: the line, direction and time window ride along through every stop
   // =====================================================================
-  const ST = { line: "A", dir: "N", win: "am" };
+  const ST = { line: "A", dir: "N", win: "am", stop: META.home.A };
   const listeners = [];
   const onState = (f) => listeners.push(f);
   function valid(r, d, w) { return SER[r] && SER[r][d] && pooled(r, d, w).length >= 12; }
+  let STATE_READY = false;
   function setState(p) {
+    const prevLine = ST.line;
     Object.assign(ST, p);
+    if (p.line && p.line !== prevLine && !p.stop) ST.stop = META.home[ST.line];
+    if (!ST.stop || !stopUsable(ST.line, ST.stop)) ST.stop = META.home[ST.line];
+    if (prevLine !== ST.line) applyStop(prevLine, META.home[prevLine]);
+    applyStop(ST.line, ST.stop);
     if (!SER[ST.line][ST.dir]) ST.dir = SER[ST.line].N ? "N" : "S";
     if (!valid(ST.line, ST.dir, ST.win)) { const alt = WINS.find((w) => valid(ST.line, ST.dir, w.id)); if (alt) ST.win = alt.id; }
     listeners.forEach((f) => f());
+    if (STATE_READY) writeHash();
+  }
+  // a change that may need a line's station file first (the picker, the search, Down the line)
+  const BUSY = { on: false };
+  async function choose(p) {
+    const line = p.line || ST.line, stop = p.stop || (line !== ST.line ? carryStop(line) : ST.stop);
+    let use = stop;
+    if (stop !== META.home[line] && !decodeLine(line)) {
+      BUSY.on = line; BUSY.err = ""; HOOKS.busy();
+      try { await loadLine(line); } catch (e) { use = META.home[line]; BUSY.err = "Could not load the " + sym(line) + " line's stations, so this shows " + niceName(stopName(META.home[line])) + "."; }
+      BUSY.on = false;
+    }
+    setState(Object.assign({}, p, { line, stop: use }));
+  }
+  const HOOKS = { busy: () => {} };
+  // the address bar remembers the choice, so a link opens your station
+  function writeHash() {
+    const q = "line=" + ST.line + "&dir=" + ST.dir + "&stop=" + ST.stop + "&when=" + ST.win;
+    try { if (location.hash.slice(1) !== q) history.replaceState(null, "", "#" + q); } catch (_) {}
+  }
+  function readHash() {
+    const q = {}; location.hash.slice(1).split("&").forEach((kv) => { const [k, v] = kv.split("="); if (k && v) q[k] = decodeURIComponent(v); });
+    const out = {};
+    if (q.line && LINES.includes(q.line)) out.line = q.line;
+    if (q.dir === "N" || q.dir === "S") out.dir = q.dir;
+    if (q.when && WIN[q.when]) out.win = q.when;
+    if (q.stop && stopsOf(out.line || ST.line).some(([pid]) => pid === q.stop)) out.stop = q.stop;
+    return out;
   }
   const S = () => stats(pooled(ST.line, ST.dir, ST.win));
   // single-day views show the day of the train graph unless that day has too few trains in the window

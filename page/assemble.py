@@ -1,7 +1,7 @@
 """Assemble the page from its parts.
 
     python page/assemble.py            # site/index.html, reading site/data.js beside it
-    python page/assemble.py --single   # also dist/longer_than_average.html, one file with the data inside
+    python page/assemble.py --single   # also dist/inspection_paradox.html: one file with every station's data inside
 """
 import base64, hashlib, sys
 from pathlib import Path
@@ -9,7 +9,7 @@ from pathlib import Path
 HERE = Path(__file__).resolve().parent
 ROOT = HERE.parent
 SITE, DIST = ROOT / "site", ROOT / "dist"
-CODE = ["part_tex.js", "part_core.js", "part_ui.js", "part_s1.js", "part_s2.js", "part_sb.js", "part_new.js", "part_cloud.js", "part_s3.js"]
+CODE = ["part_tex.js", "part_core.js", "part_ui.js", "part_s1.js", "part_s2.js", "part_sb.js", "part_new.js", "part_cloud.js", "part_proof.js", "part_down.js", "part_s3.js"]
 
 
 def rd(name):
@@ -32,9 +32,11 @@ def main():
     print("site/index.html", len(html.encode()) // 1024, "KB + data.js", len(data.encode()) // 1024, "KB")
     if "--single" in sys.argv:
         DIST.mkdir(exist_ok=True)
-        one = page("<script>\n" + data + "\n</script>\n")
-        (DIST / "longer_than_average.html").write_text(one, encoding="utf-8")
-        print("dist/longer_than_average.html", len(one.encode()) // 1024, "KB")
+        lines = "".join("<script>\n" + f.read_text(encoding="utf-8") + "</script>\n" for f in sorted((SITE / "lines").glob("*.js")))
+        one = page("<script>\n" + data + "\n</script>\n" + lines)
+        for old in DIST.glob("*.html"): old.unlink()
+        (DIST / "inspection_paradox.html").write_text(one, encoding="utf-8")
+        print("dist/inspection_paradox.html", len(one.encode()) // 1024, "KB")
 
 
 if __name__ == "__main__":

@@ -53,10 +53,6 @@ jobs:
       - name: Assemble the page
         run: python page/assemble.py
 
-      # the picture shown when the link is shared (a screenshot of the page's top)
-      - name: Add the link-preview image
-        run: cp page/og.png site/og.png
-
       - name: Install a headless browser
         run: python -m playwright install --with-deps chromium
 

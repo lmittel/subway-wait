@@ -67,12 +67,69 @@ def main(src):
             km = [0.0]
             for a_, b_ in zip(pat[:-1], pat[1:]): km.append(km[-1] + hav(a_, b_))
             out["pattern"][f"{r}|{dr}"] = dict(ids=pat, names=[NAME[s[:-1]] for s in pat], km=[round(k, 3) for k in km], here=pat.index(target))
+    # ---------- every station each line serves ----------
+    # For each line and direction: the weekday stop patterns (most common first), a small set of patterns
+    # that between them cover every stop served by at least 5 weekday trips, and each stop's timetable.
+    out["served"], out["pats"], out["sched_all"], out["order"], out["stations"] = {}, {}, {}, {}, {}
+    stw = stw.sort_values(["trip_id", "stop_sequence"])
+    by_trip = stw.groupby("trip_id").agg(route=("route", "first"), stops=("stop_id", tuple))
+    wk_times = stw.assign(sec=stw.arrival_time.map(hms))
+    for r in C.LINES:
+        for dr in "NS":
+            pc = by_trip[(by_trip.route == r) & by_trip.stops.map(lambda s: len(s) > 0 and s[0].endswith(dr))].stops.value_counts()
+            if pc.empty: continue
+            cnt = {}
+            for pat, n in pc.items():
+                for s in pat: cnt[s] = cnt.get(s, 0) + n
+            ok = {s for s, n in cnt.items() if n >= 5}
+            cover, covered = [], set()
+            for pat, n in pc.items():
+                if n < 3: break
+                if any(s in ok and s not in covered for s in pat):
+                    cover.append(list(pat)); covered |= set(pat)
+                if ok <= covered: break
+            pats = []
+            for pat in cover:
+                km = [0.0]
+                for a_, b_ in zip(pat[:-1], pat[1:]): km.append(km[-1] + hav(a_, b_))
+                pats.append(dict(ids=pat, names=[NAME[s[:-1]] for s in pat], km=[round(k, 3) for k in km]))
+            served = [s for s in dict.fromkeys(s for p in cover for s in p) if s in ok]
+            out["pats"][f"{r}|{dr}"] = pats
+            out["served"][f"{r}|{dr}"] = served
+            sub = wk_times[(wk_times.route == r) & wk_times.stop_id.isin(served)]
+            sch = {}
+            for sid, g in sub.groupby("stop_id"):
+                x = np.sort(g.sec.values); d = np.diff(np.concatenate([[0], x]))
+                sch[sid] = [int(v) for v in d]          # stored as differences; the build adds them back up
+            out["sched_all"][f"{r}|{dr}"] = sch
+        # one list of stations per line, in the order a northbound (or Manhattan-bound) train meets them
+        seqs = [[s[:-1] for s in p["ids"]] for p in out["pats"].get(f"{r}|N", [])]
+        seqs += [[s[:-1] for s in reversed(p["ids"])] for p in out["pats"].get(f"{r}|S", [])]
+        rank, nodes, edges, indeg = {}, [], {}, {}
+        for seq in seqs:
+            for s in seq:
+                if s not in rank: rank[s] = len(rank); nodes.append(s); edges[s] = set(); indeg[s] = 0
+            for a_, b_ in zip(seq[:-1], seq[1:]):
+                if b_ not in edges[a_]: edges[a_].add(b_); indeg[b_] += 1
+        servedP = {s[:-1] for dr in "NS" for s in out["served"].get(f"{r}|{dr}", [])}
+        order, ready = [], sorted([s for s in nodes if indeg[s] == 0], key=rank.get)
+        while ready:
+            s = ready.pop(0); order.append(s)
+            for b_ in sorted(edges[s], key=rank.get):
+                indeg[b_] -= 1
+                if indeg[b_] == 0: ready.append(b_); ready.sort(key=rank.get)
+        order += [s for s in nodes if s not in order]           # a loop in the patterns: keep first-seen order
+        out["order"][r] = [s for s in order if s in servedP]
+        for s in out["order"][r]:
+            e = out["stations"].setdefault(s, [NAME[s], round(LAT[s], 5), round(LON[s], 5), []])
+            if r not in e[3]: e[3].append(r)
     missing = [r for r in C.LINES if f"{r}|N" not in out["pattern"] and f"{r}|S" not in out["pattern"]]
     if missing:
         sys.exit(f"no weekday trips found at the chosen platform for {missing}")
     C.STATIC.parent.mkdir(parents=True, exist_ok=True)
     C.STATIC.write_text(json.dumps(out, separators=(",", ":"), ensure_ascii=False))
-    print("wrote", C.STATIC, "patterns", len(out["pattern"]), "timetables", len(out["sched"]), out["feed_info"])
+    print("wrote", C.STATIC, f"({C.STATIC.stat().st_size // 1024} KB)", "home patterns", len(out["pattern"]), "stations", len(out["stations"]),
+          "platform timetables", sum(len(v) for v in out["sched_all"].values()), out["feed_info"])
 
 
 if __name__ == "__main__":

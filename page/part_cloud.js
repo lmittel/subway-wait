@@ -4,7 +4,7 @@
   // =====================================================================
   const CL = { s: 0, key: "", pts: null, played: false, h: null };
   function cloudSetup() {
-    const key = ST.line + ST.dir + ST.win; if (CL.key === key && CL.pts) return; CL.key = key;
+    const key = ST.line + ST.dir + ST.stop + ST.win; if (CL.key === key && CL.pts) return; CL.key = key;
     const h = pooled(ST.line, ST.dir, ST.win), n = h.length; CL.h = h;
     if (n < 2) { CL.pts = []; return; }
     // riders pick moments, so a gap is picked in proportion to its length

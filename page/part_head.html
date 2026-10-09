@@ -7,18 +7,8 @@
 <meta name="copyright" content="© 2026 Louis Mittel. CC BY-NC 4.0">
 <link rel="license" href="https://creativecommons.org/licenses/by-nc/4.0/">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>Longer Than Average</title>
-<meta name="description" content="The inspection paradox on the New York subway: why riders wait longer than half the gap between trains, measured on every line.">
-<meta property="og:type" content="website">
-<meta property="og:site_name" content="Louis Mittel">
-<meta property="og:title" content="Longer Than Average">
-<meta property="og:description" content="The inspection paradox on the New York subway: why riders wait longer than half the gap between trains, measured on every line.">
-<meta property="og:url" content="https://louismittel.com/subway-wait/">
-<meta property="og:image" content="https://louismittel.com/subway-wait/og.png">
-<meta property="og:image:width" content="1200">
-<meta property="og:image:height" content="630">
-<meta property="og:image:alt" content="The headline Longer than average beside a graph of every uptown A train on one weekday morning">
-<meta name="twitter:card" content="summary_large_image">
+<title>The Inspection Paradox</title>
+<meta name="description" content="The inspection paradox on the New York subway: why riders wait longer than half the gap between trains, measured at every station on every line.">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Archivo:ital,wdth,wght@0,62..125,100..900;1,62..125,100..900&display=swap" rel="stylesheet">
@@ -65,10 +55,7 @@ canvas { display: block; width: 100%; touch-action: pan-y; }
 .tunnel { background: var(--tunnel); color: var(--tunnel-ink); position: relative; overflow: hidden; }
 .tunnel-in { display: grid; grid-template-columns: minmax(300px, 400px) 1fr; gap: 0 32px; max-width: 1480px; margin: 0 auto; padding: 34px 28px 30px 40px; min-height: min(86vh, 760px); }
 .hero-left { display: flex; flex-direction: column; gap: 18px; padding-top: 6px; position: relative; z-index: 1; }
-h1 { margin: 0; font-weight: 880; font-variation-settings: "wdth" 66; font-size: clamp(68px, 9.2vw, 136px); line-height: .84; letter-spacing: -0.01em; }
-h1 .long { display: inline-block; font-variation-settings: "wdth" 112; letter-spacing: 0; transition: font-variation-settings 1.6s cubic-bezier(.3,.7,.2,1); }
-h1 .long.squeezed { font-variation-settings: "wdth" 66; transition: none; }
-@media (prefers-reduced-motion: reduce) { h1 .long { transition: none; } }
+h1 { margin: 0; font-weight: 880; font-variation-settings: "wdth" 66; font-size: clamp(56px, 7.6vw, 112px); line-height: .86; letter-spacing: -0.01em; }
 .edge-strip { height: 14px; background-color: var(--edge); background-image: radial-gradient(circle, rgba(0,0,0,.42) 1.3px, transparent 1.6px); background-size: 7px 7px; border-radius: 1px; }
 .q { font-size: 19px; line-height: 1.45; max-width: 30ch; color: #c9ced2; }
 .q b { color: #fff; font-weight: 650; }
@@ -114,6 +101,23 @@ h1 .long.squeezed { font-variation-settings: "wdth" 66; transition: none; }
 .bullet.lg { width: 46px; height: 46px; font-size: 27px; line-height: 46px; }
 .picker .bullet[aria-pressed="true"] { box-shadow: 0 0 0 3px var(--enamel), 0 0 0 6px var(--edge); }
 .pill { border: 1px solid rgba(255,255,255,.25); background: none; color: #d8dcdf; border-radius: 999px; padding: 5px 12px; font-size: 14px; }
+.hero-own { align-self: flex-start; background: none; border: 0; padding: 0; margin-top: -8px; color: var(--edge); font: 650 15px var(--font); text-decoration: underline; text-underline-offset: 3px; cursor: pointer; }
+.hero-own:hover { color: #fff; }
+.pk-find { position: relative; flex: 1 1 320px; max-width: 520px; }
+#pk-q { width: 100%; box-sizing: border-box; font: 500 15px var(--font); color: #fff; background: rgba(255,255,255,.08); border: 1px solid rgba(255,255,255,.28); border-radius: 6px; padding: 8px 12px; }
+#pk-q::placeholder { color: #8f979c; }
+#pk-q:focus { outline: 2px solid var(--edge); outline-offset: 1px; }
+.pk-res { display: grid; gap: 4px; margin-top: 6px; }
+.pk-res:empty { display: none; }
+.pk-hit { display: flex; align-items: center; gap: 10px; padding: 5px 8px; border-radius: 6px; background: rgba(255,255,255,.05); }
+.pk-hit .nm { font-size: 14.5px; color: #eef0ee; font-weight: 600; margin-right: auto; text-align: left; background: none; border: 0; padding: 0; cursor: pointer; }
+.pk-hit .nm:hover { text-decoration: underline; }
+.pk-hit .bl { display: flex; gap: 4px; flex-wrap: wrap; justify-content: flex-end; }
+.pk-hit .bullet { width: 26px; height: 26px; font-size: 14px; line-height: 26px; }
+.pk-none { font-size: 13.5px; color: #9ea6ab; padding: 2px 2px; }
+#pk-stop { font: 500 15px var(--font); color: #fff; background: rgba(255,255,255,.08); border: 1px solid rgba(255,255,255,.28); border-radius: 6px; padding: 7px 10px; max-width: 100%; }
+#pk-stop option { color: #111; background: #fff; }
+.pk-msg { font-size: 13px; color: var(--edge); }
 .pill[aria-pressed="true"] { background: var(--edge); color: #1a1500; border-color: var(--edge); font-weight: 650; }
 
 /* ---------- the strip map rail ---------- */
@@ -173,6 +177,29 @@ section.stop-sec { padding: 64px 0 18px; scroll-margin-top: 64px; }
 .sw.solid-led { height: 4px; border-radius: 2px; background: var(--led); }
 .sw.dot { height: 0; border-top: 3px dotted var(--ink); border-radius: 0; background: none; }
 .nw { white-space: nowrap; }
+.pf-map { display: flex; gap: 0; margin: 2px 0 16px; }
+.pf-seg { min-width: 0; }
+.pf-row { position: relative; display: flex; justify-content: space-around; padding: 0 2px; }
+.pf-row::before { content: ""; position: absolute; left: 0; right: 0; top: 50%; height: 6px; margin-top: -3px; background: var(--ink); opacity: .85; }
+.pf-seg.edge .pf-row::before { background: var(--edge); opacity: 1; }
+.pf-seg.led .pf-row::before { background: var(--led); opacity: 1; }
+.pf-seg + .pf-seg .pf-row::before { left: -1px; }
+.pf-stop { position: relative; width: 30px; height: 30px; border-radius: 50%; border: 3px solid var(--ink); background: var(--panel); color: var(--ink); font: 720 13px/24px var(--font); padding: 0; z-index: 1; }
+.pf-stop.done { background: var(--ink); color: var(--panel); }
+.pf-stop[aria-current="step"] { background: var(--edge); color: var(--ink); box-shadow: 0 0 0 3px var(--panel), 0 0 12px 2px rgba(242,183,5,.55); }
+.pf-seglab { font-size: 12.5px; color: var(--ink-2); text-align: center; margin-top: 6px; font-weight: 600; }
+.pf-grid { display: grid; grid-template-columns: minmax(0, 0.85fr) minmax(0, 1.15fr); gap: 22px; align-items: start; }
+.pf-title { font-weight: 740; font-size: 19px; margin: 2px 0 6px; color: var(--ink); }
+.pf-eq .formula { font-size: 21px; margin: 6px 0; overflow-x: auto; overflow-y: hidden; padding: 2px 0; }
+.pf-eq .hl, .pf-list .hl { color: var(--led-deep); }
+.pf-why { font-size: 16px; line-height: 1.55; color: var(--ink-2); margin: 8px 0 0; }
+.pf-why b { color: var(--ink); font-weight: 680; }
+.pf-list { margin: 14px 0 0; padding: 12px 0 0 22px; border-top: 1px solid var(--line); }
+.pf-list li { margin: 0 0 10px; color: var(--ink-2); }
+.pf-list li b { color: var(--ink); }
+.pf-list .formula { font-size: 17px; margin: 4px 0; overflow-x: auto; overflow-y: hidden; }
+@media (max-width: 860px) { .pf-grid { grid-template-columns: 1fr; gap: 6px; } }
+@media (max-width: 560px) { .pf-stop { width: 24px; height: 24px; font-size: 11.5px; line-height: 18px; border-width: 2.5px; } .pf-seglab { font-size: 11px; } .pf-eq .formula { font-size: 16.5px; } .pf-title { font-size: 17px; } }
 .fpair { display: flex; flex-wrap: wrap; align-items: center; column-gap: 2.4em; }
 .fpair > .formula { margin: 8px 0; }
 .sw.solid-ink { height: 2px; border-radius: 1px; background: var(--ink); }

@@ -1,5 +1,5 @@
   const TEXSYM = { alpha: "α", beta: "β", gamma: "γ", delta: "δ", varepsilon: "ε", epsilon: "ε", theta: "θ", lambda: "λ", mu: "μ", pi: "π", rho: "ρ", sigma: "σ", tau: "τ", phi: "φ", varphi: "φ", chi: "χ", omega: "ω", Phi: "Φ", Sigma: "Σ", infty: "∞", partial: "∂", ell: "ℓ" };
-  const TEXOP = { Rightarrow: "⇒", mid: "∣", times: "×", cdot: "·", approx: "≈", sim: "∼", le: "≤", ge: "≥", leq: "≤", geq: "≥", to: "→", propto: "∝", pm: "±", int: "∫", sum: "∑", ne: "≠", div: "÷", in: "∈", cap: "∩", cup: "∪", ldots: "…" };
+  const TEXOP = { Rightarrow: "⇒", mid: "∣", times: "×", cdot: "·", approx: "≈", sim: "∼", le: "≤", ge: "≥", leq: "≤", geq: "≥", to: "→", propto: "∝", pm: "±", int: "∫", sum: "∑", ne: "≠", div: "÷", in: "∈", cap: "∩", cup: "∪", ldots: "…", cdots: "⋯" };
   const TEXSP = { ",": "0.1667em", ";": "0.2778em", " ": "0.25em", quad: "1em", qquad: "2em" };
   const OPCH = "+−=<>,/|:;!·×≈∼≤≥→∝±∫∑÷∈…'⇒∣";
   function tex(src, opts) {

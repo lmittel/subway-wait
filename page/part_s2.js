@@ -3,7 +3,7 @@
   // =====================================================================
   const SAW = { key: "", t: [], t0: [], drag: -1, ymax: 1, back: 0, backOn: false };
   function sawSetup(force) {
-    const key = ST.line + ST.dir + ST.win; if (!force && key === SAW.key) return; SAW.key = key;
+    const key = ST.line + ST.dir + ST.stop + ST.win; if (!force && key === SAW.key) return; SAW.key = key;
     SAW.day = showDay(); SAW.t0 = dayArrivals(ST.line, ST.dir, SAW.day, ST.win).slice(); SAW.t = SAW.t0.slice();
     let mx = 0; for (let i = 0; i + 1 < SAW.t0.length; i++) mx = Math.max(mx, (SAW.t0[i + 1] - SAW.t0[i]) / 60);
     SAW.ymax = mx * 1.12;
@@ -116,7 +116,7 @@
     dens3(ctx, W, H, xs, f, fb, fw, xmax, Math.max(...f, ...fb, ...fw) * 1.08,
       [[s.EW, "your wait " + fmt(s.EW), C.led], [s.mu, "gap " + fmt(s.mu), C.steel], [s.EL, "your gap " + fmt(s.EL), C.dark ? C.edge : "#8a6a00"]]);
     $("f-three").innerHTML = MD`E[W] = \frac{E[L]}{2} = \frac{E[H^2]}{2E[H]} = \frac{\mu}{2}\bigl(1 + \mathrm{CV}^2\bigr)` + ' <span class="fnum">&nbsp;=&nbsp; ' + M`\frac{${fmt(s.mu, 2)}}{2}(1 + ${fmt(s.cv, 3)}^2) = ${fmt(s.EW, 2)}` + " min</span>";
-    $("n-three").innerHTML = "Here <i>H</i> is a gap between trains, with average " + M`\mu` + "; <i>L</i> is the gap a random rider lands in; <i>W</i> is that rider's wait. The wait has density " + M`P(H > w)/\mu` + ", which never increases with <i>w</i>: <b>no wait is more likely than a short one</b>. So the orange is not the yellow squeezed in half; the cloud below shows why.";
+    $("n-three").innerHTML = "Here <i>H</i> is a gap between trains, with average " + M`\mu` + "; <i>L</i> is the gap a random rider lands in; <i>W</i> is that rider's wait. The wait has density " + M`P(H > w)/\mu` + ", which never increases with <i>w</i>: <b>no wait is more likely than a short one</b>. It starts flat at " + M`1/\mu` + " = " + (1 / s.mu).toFixed(2) + ", and stays flat up to the shortest gap (" + fmt(h.reduce((a, b) => Math.min(a, b), Infinity)) + " min): a wait shorter than every gap can happen in any gap, once per train. So the orange is not the yellow squeezed in half; the cloud below shows why.";
   }
 
   // ---------- the algebra behind the three curves, and behind giving up (written once) ----------
@@ -147,10 +147,13 @@
     FD(MD`h(t) = \frac{f_W(t)}{P(W > t)} = \frac{1}{E[H - t \mid H > t]}`),
     "<p>The chance per minute is one over a <i>gap's</i> expected remaining length. At " + M`t = 0` + ": " + M`m(0) = E[W] = \frac{\mu}{2}(1 + \mathrm{CV}^2)` + ", which depends on the unevenness (" + M`\mu/2` + " for clockwork, " + M`\mu` + " for Poisson), while " + M`h(0) = 1/\mu` + " for every gap law with average " + M`\mu` + ". That is why the expected-wait curves start apart and the chance-per-minute curves start together.</p>",
     "<h4>The rule</h4>",
-    "<p>Plan: wait up to " + M`\tau` + " minutes, then take the fallback, which gets you there " + M`c` + " minutes later than a train arriving at that instant would. Counting minutes on the platform, plus " + M`c` + " if you give up:</p>",
+    "<p>Let the train ride to where you are going take " + M`R` + " minutes, and the other way there (walking, a bus, a cab) take " + M`A` + " minutes door to door from the platform. Plan: wait up to " + M`\tau` + " minutes, then go the other way. You arrive at " + M`W + R` + " if the train comes first, and at " + M`\tau + A` + " if it does not, so on average</p>",
+    FD(MD`E[\text{arrival}] = R + E[\min(W, \tau)] + (A - R)\,P(W > \tau)`),
+    "<p>The ride time enters only through the difference " + M`c = A - R` + ", the extra minutes the other way takes. Write " + M`g(\tau) = E[\min(W, \tau)] + c\,P(W > \tau)` + ", so the expected arrival is " + M`R + g(\tau)` + ":</p>",
     FP(MD`g(\tau) = E[\min(W, \tau)] + c\,P(W > \tau)`, MD`g\prime(\tau) = P(W > \tau)\,\bigl(1 - c\,h(\tau)\bigr)`),
-    "<p>The expected cost falls while " + M`h(\tau) > 1/c` + " and rises while " + M`h(\tau) < 1/c` + ": one more minute costs a minute and, with chance about " + M`h(\tau)` + ", saves " + M`c` + ". Taking the fallback at once costs " + M`g(0) = c` + "; never giving up costs " + M`g(\infty) = E[W]` + ". The page minimises " + M`g` + " on a fine grid, up to the point where only a few gaps are longer, and compares the result with both.</p>",
-    "<p><b>A consequence.</b> If " + M`h` + " never falls below its starting value " + M`1/\mu` + " (true on most lines here) and the fallback costs more than an average gap, " + M`c > \mu` + ", then " + M`h > 1/c` + " throughout: " + M`g` + " only falls, and you should never give up.</p>",
+    "<p>The expected cost falls while " + M`h(\tau) > 1/c` + " and rises while " + M`h(\tau) < 1/c` + ": one more minute costs a minute and, with chance about " + M`h(\tau)` + ", saves " + M`c` + ". Leaving at once costs " + M`g(0) = c` + "; never giving up costs " + M`g(\infty) = E[W]` + ". The page minimises " + M`g` + " on a fine grid, up to the point where only a few gaps are longer, and compares the result with both.</p>",
+    "<p><b>Already waited a while?</b> For a rider who has waited " + M`t` + " minutes the same argument applies to " + M`\tau \ge t` + ", with every probability conditioned on " + M`W > t` + ". The best " + M`\tau` + " is the same as from the start whenever it is still ahead of you; the sign and the tiles above use this.</p>",
+    "<p><b>A consequence.</b> If " + M`h` + " never falls below its starting value " + M`1/\mu` + " (true on most lines here) and the other way's extra time is more than an average gap, " + M`c > \mu` + ", then " + M`h > 1/c` + " throughout: " + M`g` + " only falls, and you should never give up.</p>",
   ].join(""));
 
   // =====================================================================
@@ -190,7 +193,7 @@
       : cvv > 1 ? "More uneven than random arrivals: bunched trains followed by long holes. Your average wait is now longer than an average gap."
       : "These gaps follow a gamma distribution with CV " + cvv.toFixed(2) + ". For gaps of any shape the average wait is " + M`\frac{\mu}{2}(1 + \mathrm{CV}^2)` + ": only the mean and the CV matter.";
     $("n-chaos").innerHTML = n;
-    const gs = stats(pooled("GS", "N", ST.win));
+    const gs = stats(pooled("GS", "N", ST.win, true));
     $("chaos-marks").innerHTML = "";
     [["Shuttle", gs ? gs.cv : 0.15], ["Your line", s.cv], ["Poisson", 1]].forEach(([lab, v]) => {
       const b = document.createElement("button"); b.className = "btn"; b.type = "button"; b.textContent = lab + " (CV " + v.toFixed(2) + ")";
@@ -205,7 +208,9 @@
   // after waiting t: expected further wait m(t) = E[((X-t)+)^2] / (2 E[(X-t)+])
   // the train's chance per minute (hazard of the wait): h(t) = P(X > t) / E[(X-t)+] = 1 / E[X - t | X > t]
   // =====================================================================
-  const GU = { t: 0, c: 10, key: "", boot: null };
+  // ride: the train ride to where you are going; alt: the other way there, door to door, from this platform.
+  // Arriving: wait W then ride, W + ride; or give up at tau and go the other way, tau + alt. Only alt - ride = c matters.
+  const GU = { t: 0, ride: 15, alt: 25, c: 10, key: "", boot: null };
   // gaps sorted, with suffix sums: every quantity at t is one binary search away
   function tailer(h) {
     const a = Float64Array.from(h).sort(), n = a.length, s1 = new Float64Array(n + 1), s2 = new Float64Array(n + 1);
@@ -214,7 +219,8 @@
     return { n, tot, EW: s2[0] / (2 * tot),
       mres: (t) => { const q = at(t); return q.e1 > 1e-12 ? q.e2 / (2 * q.e1) : NaN; },
       haz: (t) => { const q = at(t); return q.e1 > 1e-12 ? q.k / q.e1 : NaN; },
-      surv: (t) => at(t).e1 / tot };
+      surv: (t) => at(t).e1 / tot,
+      rest: (t) => at(t).e2 / (2 * tot) };   // E[(W - t)+], the wait still ahead, averaged over all riders
   }
   function mres(h, t) { let a = 0, b = 0; for (const x of h) { const d = x - t; if (d > 0) { a += d * d; b += d; } } return b > 0 ? a / (2 * b) : NaN; }
   // stop while a dozen or so gaps are still longer than t; past that, a handful of gaps would be doing the talking
@@ -235,7 +241,7 @@
   }
   // how much the curves move when the ten days are resampled with replacement (a 90% band)
   function guBoot(ts) {
-    const key = ST.line + ST.dir + ST.win + ts.length + ts[ts.length - 1]; if (GU.key === key && GU.boot) return GU.boot; GU.key = key;
+    const key = ST.line + ST.dir + ST.stop + ST.win + ts.length + ts[ts.length - 1]; if (GU.key === key && GU.boot) return GU.boot; GU.key = key;
     const days = pooledDays(ST.line, ST.dir, ST.win), B = 200, rng = mulberry(31), M = [], Hz = [];
     for (let b = 0; b < B && days.length > 1; b++) {
       const g = []; for (let i = 0; i < days.length; i++) { for (const v of days[Math.floor(rng() * days.length)]) g.push(v); }
@@ -245,13 +251,19 @@
     return (GU.boot = { m: band(M), h: band(Hz) });
   }
   // the plan "wait up to tau minutes, then give up" costs E[min(W, tau)] + c P(W > tau); never giving up costs E[W]
-  function guPlan(T, tmax, c) {
-    const N = 400, dt = tmax / N; let cum = 0, best = c, tau = 0, prev = T.surv(0);
-    for (let i = 1; i <= N; i++) { const t = i * dt, sv = T.surv(t); cum += 0.5 * (prev + sv) * dt; prev = sv; const g = cum + c * sv; if (g < best - 1e-9) { best = g; tau = t; } }
-    if (T.EW <= best + 0.05) return { kind: "never", cost: T.EW, EW: T.EW };
-    if (tau === 0) return { kind: "walk", cost: c, EW: T.EW };
-    if (tau >= tmax - 1.5 * dt) return { kind: "never", cost: T.EW, EW: T.EW, edge: true };
-    return { kind: "quit", tau, cost: best, EW: T.EW };
+  // the best plan for a rider who has already waited t0: give up at some tau >= t0, or never.
+  // cost = expected minutes from now until you are on your way, counting the other way's extra c; arrive in cost + ride.
+  function guPlan(T, tmax, c, t0 = 0) {
+    const S0 = T.surv(t0), never = S0 > 0 ? T.rest(t0) / S0 : NaN;
+    if (!(S0 > 0)) return { kind: "never", cost: NaN, EW: NaN, t0 };
+    if (c <= 0) return { kind: "walk", cost: c, EW: never, t0 };
+    const N = 400, dt = Math.max(1e-6, (tmax - t0) / N); let cum = 0, best = c * S0, tau = t0, prev = S0;
+    for (let i = 1; i <= N; i++) { const t = t0 + i * dt, sv = T.surv(t); cum += 0.5 * (prev + sv) * dt; prev = sv; const g = cum + c * sv; if (g < best - 1e-9) { best = g; tau = t; } }
+    best /= S0;
+    if (never <= best + 0.05) return { kind: "never", cost: never, EW: never, t0 };
+    if (tau === t0) return { kind: "walk", cost: c, EW: never, t0 };
+    if (tau >= tmax - 1.5 * dt) return { kind: "never", cost: never, EW: never, edge: true, t0 };
+    return { kind: "quit", tau, cost: best, EW: never, t0 };
   }
 
   // ---------- a countdown clock, in a 5-by-7 dot font like the platform signs ----------
@@ -288,7 +300,7 @@
   function drawLed(T, plan) {
     const m = T.mres(GU.t), cv = $("cv-led"), wrap = Math.max(220, cv.parentElement.clientWidth - 36);
     // three lines: how long you have waited, how much longer to expect, and what to do
-    const adv = !plan ? ["", ""] : plan.kind === "walk" ? ["walk now", "#ff5a4a"] : plan.kind === "never" ? ["keep waiting", "#46d36f"] : GU.t >= plan.tau - 1e-9 ? ["give up now", "#ff5a4a"] : ["give up at " + plan.tau.toFixed(1), "#ffb02a"];
+    const adv = !plan ? ["", ""] : plan.kind === "walk" ? ["leave now", "#ff5a4a"] : plan.kind === "never" ? ["keep waiting", "#46d36f"] : ["give up at " + plan.tau.toFixed(1), "#ffb02a"];
     const rowsTxt = [["waited", GU.t.toFixed(1) + " min", "#ff8a2a"], ["expect", Number.isFinite(m) ? m.toFixed(1) + " more" : "no data", "#ffb02a"], ["plan", adv[0], adv[1]]];
     const G = rowsTxt.map(([a, b]) => [ledGlyphs(a), ledGlyphs(b)]), need = 34 + Math.max(...G.map((g) => g[0].w)) + 6 + Math.max(...G.map((g) => g[1].w)) + 2;
     const cell = clamp(wrap / Math.max(need, 150), 1.5, 4.4), rowsN = 30, H = Math.round(cell * rowsN);
@@ -318,8 +330,17 @@
   function drawGiveup() {
     const h = pooled(ST.line, ST.dir, ST.win), s = stats(h); if (!s) return;
     const T = tailer(h), tmax = guRange(h); $("gu-t").max = tmax; GU.t = Math.min(GU.t, tmax); $("gu-t").value = GU.t; $("gu-t-v").textContent = GU.t.toFixed(1) + " min";
-    const N = 240, ts = Array.from({ length: N + 1 }, (_, i) => tmax * i / N), ms = ts.map(T.mres), boot = guBoot(ts), plan = guPlan(T, tmax, GU.c);
-    drawLed(T, plan);
+    GU.c = GU.alt - GU.ride;
+    const N = 240, ts = Array.from({ length: N + 1 }, (_, i) => tmax * i / N), ms = ts.map(T.mres), boot = guBoot(ts), plan = guPlan(T, tmax, GU.c), now = guPlan(T, tmax, GU.c, GU.t);
+    drawLed(T, now);
+    // the decision in arrival times, from where you stand now
+    const c = GU.c, mNow = T.mres(GU.t), arrWait = mNow + GU.ride, arrPlan = now.cost + GU.ride;
+    $("gu-diff").innerHTML = c > 0 ? "Your ride takes " + GU.ride + " minutes once the train comes; the other way from this platform (walking, a bus, a cab) takes " + GU.alt + ". Giving up costs you the difference, <b>" + fmtC(c) + " minutes more than riding</b>, in exchange for the rest of the wait."
+      : "The other way takes no longer than the ride itself (" + GU.alt + " against " + GU.ride + " minutes), so <b>there is no reason to wait</b>.";
+    const tile = (cls, v, k) => '<div class="ro ' + cls + '"><div class="v">' + v + '</div><div class="k">' + k + "</div></div>";
+    $("ro-gu").innerHTML = tile("wait", Number.isFinite(arrWait) ? fmt(arrWait) + " min" : "–", "you arrive, on average, if you wait for the train: " + fmt(mNow) + " more on the platform, then the ride") +
+      tile("", GU.alt + " min", "you arrive if you leave now the other way") +
+      tile("riders", Number.isFinite(arrPlan) ? fmt(Math.min(arrPlan, arrWait, GU.alt)) + " min" : "–", "best plan from here: " + (now.kind === "walk" ? "leave now" : now.kind === "never" ? "keep waiting" : "wait until " + fmt(now.tau) + " minutes in, then go the other way"));
     $("gu-keys").innerHTML = '<span><i class="sw solid-led"></i>' + lcPhrase(ST.line, ST.dir).replace(/^the /, "") + ", real gaps: starts at " + fmt(s.EW) + "</span>" +
       '<span><i class="sw dash steel"></i>clockwork, every gap exactly ' + fmt(s.mu) + " min: starts at half, " + fmt(s.mu / 2) + "</span>" +
       '<span><i class="sw dot"></i>Poisson, random gaps averaging ' + fmt(s.mu) + " min: stays at " + fmt(s.mu) + "</span>";
@@ -371,7 +392,7 @@
     const c = GU.c, N = 240, ts = Array.from({ length: N + 1 }, (_, i) => tmax * i / N), hs = ts.map(T.haz);
     const cv = $("cv-hazard"), { ctx, W, H } = fit(cv, 270);
     caption(cv, "The chance per minute that the train comes, if it hasn't yet. Above the line, one more minute of waiting is a good bet.");
-    const ymax = Math.min(1, Math.max(1.25 / c, ...hs.filter(Number.isFinite), 1 / s.mu) * 1.15);
+    const ymax = Math.min(1, Math.max(c > 0 ? 1.25 / c : 0, ...hs.filter(Number.isFinite), 1 / s.mu) * 1.15);
     const x0 = 50, x1 = W - 12, top = 12, axisY = H - 44, sx = (v) => x0 + v / tmax * (x1 - x0), sy = (v) => axisY - Math.min(v, ymax * 1.02) / ymax * (axisY - top);
     const yst = niceStep(ymax * 100, 4) / 100, yt = []; for (let v = 0; v <= ymax + 1e-9; v += yst) yt.push(v);
     yGrid(ctx, x0, x1, yt, sy, (v) => Math.round(v * 100) + "%");
@@ -391,10 +412,10 @@
     $("gu-keys2").innerHTML = '<span><i class="sw solid-led"></i>' + lcPhrase(ST.line, ST.dir).replace(/^the /, "") + ", real gaps</span>" +
       '<span><i class="sw dash steel"></i>clockwork: certain by ' + fmt(s.mu) + " min</span>" +
       '<span><i class="sw dot"></i>Poisson: always 1 in ' + fmt(s.mu) + "</span>" +
-      '<span><i class="sw solid-ink"></i>your fallback: 1 in ' + fmtC(c) + "</span>";
-    // your fallback: 1 in c per minute
-    ctx.strokeStyle = C.ink; ctx.lineWidth = 1.6; line(ctx, x0, sy(1 / c), x1, sy(1 / c));
-    { const lab = "1 in " + fmtC(c) + " per minute: your fallback", lw = tw(ctx, lab, 12, 700), xt = plan.kind === "quit" && sx(plan.tau) > x1 - lw - 24 ? sx(plan.tau) - 10 : x1 - 4;
+      (c > 0 ? '<span><i class="sw solid-ink"></i>break-even: 1 in ' + fmtC(c) + ", the other way's extra minutes</span>" : "");
+    // break-even: 1 in c per minute
+    if (c > 0) { ctx.strokeStyle = C.ink; ctx.lineWidth = 1.6; line(ctx, x0, sy(1 / c), x1, sy(1 / c)); }
+    if (c > 0) { const lab = "1 in " + fmtC(c) + " per minute: break-even", lw = tw(ctx, lab, 12, 700), xt = plan.kind === "quit" && sx(plan.tau) > x1 - lw - 24 ? sx(plan.tau) - 10 : x1 - 4;
       const yp = sy(1 / s.mu), yc = sy(1 / c), yb = yp > yc && yp - yc < 22 ? yp + 15 : yc + 17;
       halo(ctx, lab, xt, xt < x1 - 4 ? yb : yc - 7, 12, C.ink, "right", 700); }
     halo(ctx, "clockwork", sx(Math.min(tmax, s.mu) * 0.7), sy(Math.min(ymax * 0.95, 1 / (s.mu - Math.min(tmax, s.mu) * 0.7))) - 8, 12, C.steel, "center", 650);
@@ -404,24 +425,27 @@
     xAxis(ctx, x0, x1, axisY, xt, sx, (v) => String(v));
     text(ctx, "minutes already waited", x1, axisY + 30, 12, C.muted, "right", 500);
     // the note: the rule, and why
-    const why = "Each extra minute on the platform costs you a minute, and saves you " + fmtC(c) + " if the train comes in it. So waiting one more minute pays while the train's chance per minute is above 1 in " + fmtC(c) + ".";
+    const why = "Each extra minute on the platform costs you a minute. If the train comes in that minute, you ride instead of going the other way, which saves the " + fmtC(c) + " extra minutes the other way takes (" + GU.alt + " door to door, against a " + GU.ride + "-minute ride). So waiting one more minute pays while the train's chance per minute is above 1 in " + fmtC(c) + ".";
     const at0 = T.haz(0), hmin = Math.min(...hs.filter(Number.isFinite)), lowestAtStart = hmin >= at0 * 0.98, above = hs.every((v) => !Number.isFinite(v) || v > 1 / c);
     let n;
-    if (plan.kind === "walk") n = "<b>Don't wait: take your fallback now.</b> It costs " + fmtC(c) + " minutes; waiting for this train costs " + fmt(plan.EW, 1) + " on average, and no plan that starts by waiting does better. ";
+    if (plan.kind === "walk") n = c <= 0 ? "<b>Don't wait: go the other way.</b> It gets you there in " + GU.alt + " minutes, no slower than the " + GU.ride + "-minute ride, so any wait for the train is lost time. "
+      : "<b>Don't wait: go the other way now.</b> It gets you there in " + GU.alt + " minutes; waiting for this train and riding takes " + fmt(plan.EW + GU.ride, 1) + " on average, and no plan that starts by waiting does better. ";
     else if (plan.kind === "never") n = "<b>Keep waiting, at least for the first " + fmt(tmax) + " minutes.</b> " + why + (above ? " On this line it stays above 1 in " + fmtC(c) + " that whole time." : " On this line it dips below 1 in " + fmtC(c) + " only briefly, too briefly for giving up to pay.") + " Past " + fmt(tmax) + " minutes only a few gaps last longer, too few to judge. ";
-    else n = "<b>Give up after about " + fmt(plan.tau) + " minutes.</b> " + why + " On this line, after " + fmt(plan.tau) + " minutes the chance per minute drops below 1 in " + fmtC(c) + ". The rule costs " + fmt(plan.cost, 2) + " minutes on average, against " + fmt(plan.EW, 2) + " if you never give up. ";
+    else n = "<b>Give up after about " + fmt(plan.tau) + " minutes.</b> " + why + " On this line, after " + fmt(plan.tau) + " minutes the chance per minute drops below 1 in " + fmtC(c) + ". Following the rule, you arrive in " + fmt(plan.cost + GU.ride, 1) + " minutes on average, against " + fmt(plan.EW + GU.ride, 1) + " if you never give up. ";
     n += "All three curves start at 1 in " + fmt(s.mu) + ": the moment you arrive, only the average gap matters. (The expected waits above start apart because they also depend on the unevenness.)";
     if (lowestAtStart && plan.kind !== "walk") n += " On this line the chance never drops below that start: if waiting was worth starting, it is worth continuing.";
+    n += " (The board below compares every line at its default station, with the same " + (c > 0 ? fmtC(c) + " extra minutes for the other way" : "other way") + ".)";
     $("n-hazard").innerHTML = n;
     // every line, same fallback
     const groups = { quit: [], never: [], walk: [] };
-    lineSet().forEach((p) => { const hh = pooled(p.r, p.d, ST.win), TT = tailer(hh), pl = guPlan(TT, guRange(hh), c); groups[pl.kind].push([p, pl]); });
+    lineSet().forEach((p) => { const hh = pooled(p.r, p.d, ST.win, true), TT = tailer(hh), pl = guPlan(TT, guRange(hh), c); groups[pl.kind].push([p, pl]); });
     groups.quit.sort((a, b) => a[1].tau - b[1].tau);
     const chip = ([p, pl]) => '<button type="button" class="gu-chip" data-r="' + p.r + '" data-d="' + p.d + '"><span class="bullet sm" style="--bc:' + lineColor(p.r) + ";--bt:" + lineText(p.r) + '">' + sym(p.r) + "</span>" + (DIRSHORT(p.r, p.d) ? '<span class="gu-d">' + DIRSHORT(p.r, p.d) + "</span>" : "") + (pl.kind === "quit" ? '<span class="gu-t">' + fmt(pl.tau) + "</span>" : "") + "</button>";
     $("gu-board").innerHTML = [["quit", "Give up after (minutes)"], ["never", "Keep waiting (as far as the data reach)"], ["walk", "Don't wait at all"]].filter(([k]) => groups[k].length)
       .map(([k, lab]) => '<div class="gu-row"><span class="gu-lab">' + lab + '</span><div class="gu-chips">' + groups[k].map(chip).join("") + "</div></div>").join("");
   }
   const fmtC = (c) => (Math.abs(c - Math.round(c)) < 1e-9 ? String(Math.round(c)) : c.toFixed(1));
-  $("gu-board").addEventListener("click", (e) => { const b = e.target.closest(".gu-chip"); if (b) setState({ line: b.dataset.r, dir: b.dataset.d }); });
+  $("gu-board").addEventListener("click", (e) => { const b = e.target.closest(".gu-chip"); if (b) setState({ line: b.dataset.r, dir: b.dataset.d, stop: META.home[b.dataset.r] }); });
   $("gu-t").addEventListener("input", (e) => { GU.t = +e.target.value; $("gu-t-v").textContent = GU.t.toFixed(1) + " min"; drawGiveup(); });
-  $("gu-c").addEventListener("input", (e) => { GU.c = +e.target.value; $("gu-c-v").textContent = fmtC(GU.c) + " min"; drawGiveup(); });
+  $("gu-ride").addEventListener("input", (e) => { GU.ride = +e.target.value; $("gu-ride-v").textContent = GU.ride + " min"; drawGiveup(); });
+  $("gu-alt").addEventListener("input", (e) => { GU.alt = +e.target.value; $("gu-alt-v").textContent = GU.alt + " min"; drawGiveup(); });

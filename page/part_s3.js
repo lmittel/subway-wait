@@ -6,9 +6,9 @@
   function lineSet() {
     const out = [];
     LINES.forEach((r) => ["N", "S"].forEach((d) => {
-      if (!SER[r][d] || (r === "GS" && d === "S")) return;
-      const s = stats(pooled(r, d, ST.win)); if (!s || s.n < 12) return;
-      out.push({ r, d, s, ss: stats(schedGaps(r, d, ST.win)) });
+      if (!HOME.SER[r][d] || (r === "GS" && d === "S")) return;
+      const s = stats(pooled(r, d, ST.win, true)); if (!s || s.n < 12) return;
+      out.push({ r, d, s, ss: stats(schedGaps(r, d, ST.win, true)) });
     }));
     return out;
   }
@@ -53,6 +53,13 @@
       ctx.closePath(); ctx.fill();
       LN.pts.push({ p, x, y, rad });
     });
+    if (ST.stop !== META.home[ST.line]) {
+      const me = S(), hp = sel[0];
+      if (me) { const x = sx(Math.min(me.mu, xmax)), y = sy(Math.min(me.cv, ymax));
+        if (hp) { ctx.strokeStyle = rgba(C.rgb.ink, 0.5); ctx.setLineDash([3, 3]); ctx.lineWidth = 1.3; line(ctx, sx(hp.s.mu), sy(hp.s.cv), x, y); ctx.setLineDash([]); }
+        ctx.fillStyle = C.edge; ctx.strokeStyle = C.ink; ctx.lineWidth = 2; ctx.beginPath(); ctx.arc(x, y, rad * 0.62, 0, 6.283); ctx.fill(); ctx.stroke();
+        halo(ctx, "your station: " + stationName(ST.line), x + (x > W * 0.6 ? -rad : rad), y - rad - 2, 12.5, C.ink, x > W * 0.6 ? "right" : "left", 740); }
+    }
     if (LN.hover) {
       const p = LN.hover, x = sx(p.s.mu), y = sy(p.s.cv);
       const lines = [trainsPhrase(p.r, p.d), "gap " + fmt(p.s.mu) + " min, CV " + fmt(p.s.cv, 2), "average wait " + fmt(p.s.EW) + " (half the gap: " + fmt(p.s.half) + ")"];
@@ -108,7 +115,7 @@
   $("ln-sched").addEventListener("click", () => { LN.sched = !LN.sched; $("ln-sched").setAttribute("aria-pressed", LN.sched); drawLines(); drawRank(); });
 
   // =====================================================================
-  // WHY TRAINS BUNCH: a toy loop line with a dwell-time feedback
+  // WHY TRAINS BUNCH: a simulated loop line with a dwell-time feedback
   // =====================================================================
   const BS = { N: 6, S: 12, travel: 90, d0: 20, lam: 3 / 60, b: 1.2, hold: false, running: true, raf: 0, last: 0 };
   function bunchReset() {
@@ -169,11 +176,11 @@
       ctx.save(); ctx.translate(x, y); ctx.rotate(a + Math.PI / 2); ctx.fillStyle = lineColor(ST.line); ctx.strokeStyle = C.ink; ctx.lineWidth = 1.2;
       ctx.beginPath(); ctx.roundRect ? ctx.roundRect(-11, -5, 22, 10, 3) : ctx.rect(-11, -5, 22, 10); ctx.fill(); ctx.stroke(); ctx.restore();
     });
-    text(ctx, Math.floor(BS.t / 3600) + "h " + String(Math.floor((BS.t % 3600) / 60)).padStart(2, "0") + "m of toy time", cx, cy + 5, 13, C.muted, "center", 560);
+    text(ctx, Math.floor(BS.t / 3600) + "h " + String(Math.floor((BS.t % 3600) / 60)).padStart(2, "0") + "m of simulated time", cx, cy + 5, 13, C.muted, "center", 560);
   }
   function drawBunchChart() {
     const cv = $("cv-bunch"), { ctx, W, H } = fit(cv, 176), tr = BS.trace;
-    caption(cv, "Unevenness of the gaps (CV), last two hours of toy time");
+    caption(cv, "Unevenness of the gaps (CV), last two simulated hours");
     const x0 = 40, x1 = W - 8, top = 10, axisY = H - 26, span = 120 * 60, tB = Math.max(BS.t, span), tA = tB - span;
     const sx = (t) => x0 + (t - tA) / span * (x1 - x0), sy = (v) => axisY - Math.min(v, 2) / 2 * (axisY - top);
     yGrid(ctx, x0, x1, [0, 0.5, 1, 1.5, 2], sy, (v) => v.toFixed(1));
@@ -204,14 +211,14 @@
       : BS.b === 0 ? "With no time spent boarding, nothing pushes the gaps apart; only small random speed differences remain." : BS.b < 0.4 ? "With quick boarding the feedback is weak, so the gaps drift apart slowly, but they still drift." : "Each boarding rider adds " + BS.b.toFixed(2) + " s to the stop. Small delays grow on their own until the trains run in bunches: same number of trains, longer waits.";
   }
   $("b-board-v").textContent = BS.b.toFixed(2) + " s"; bunchReset(); bunchNote();
-  if (RM) { BS.running = false; $("b-run").textContent = "Run"; }   // with reduced motion the toy waits for a tap
+  if (RM) { BS.running = false; $("b-run").textContent = "Run"; }   // with reduced motion the simulation waits for a tap
 
   // =====================================================================
   // END OF THE LINE
   // =====================================================================
   $("f-end").innerHTML = MD`E[W] = \frac{E[H^2]}{2\,E[H]} = \frac{\mu}{2}\bigl(1 + \mathrm{CV}^2\bigr)`;
   $("end-lines").innerHTML = "Ask the trains how long the gaps are and the average answer is " + M`\mu` + ". Ask the riders and it is " + M`\mu(1 + \mathrm{CV}^2)` + ", because long gaps hold more of them. Your average wait is half of that. The same bias shows up whenever you sample by being there: the class the average student sits in is bigger than the average class.";
-  $("credits").innerHTML = "<b>Data.</b> Arrival times are from <a href='https://subwaydata.nyc' target='_blank' rel='noopener'>subwaydata.nyc</a>, which archives the MTA's realtime subway feeds and records when each train reached each stop. " + cap(NUMW[WEEKDAYS_N] || String(WEEKDAYS_N)) + " weekdays (" + DATESPAN + ") at one busy station per line. A train's time at a stop is the feed's last estimate before the stop dropped off its schedule, accurate to roughly half a minute. Records where a train's planned stops vanished before it got there, without the train continuing down the line, are dropped. Gaps that overlap an outage in the feed, or that run past either end of the time window, are left out; long gaps are likelier to do either, so this trims a few long gaps. About " + Math.round(100 * (META.coverage ?? 0.06)) + "% of the trains in the timetable do not appear in the record: some were cancelled, and others ran but were missed by the tracking, so the measured gaps may run slightly long. The train graph shows one morning, " + dayLong(MAREY_IDX) + "." + (META.built ? " Data through " + dayLong(DAYS.length - 1) + ", " + dateOf(DAYS[DAYS.length - 1]).getFullYear() + "." : "") + " The timetable is the MTA's published weekday GTFS schedule in effect for these dates. <b>Model.</b> Riders are assumed to arrive like darts: at a steady rate, at moments that have nothing to do with the trains. For the trains that actually ran, the average wait of such riders is exactly " + M`\sum h^2 / (2 \sum h)` + ", and nothing about how the trains behave has to be assumed; the trains' steadiness (stationarity) matters only when ten days are used to predict an eleventh. A countdown clock lets a rider spend less of the wait on the platform, but a rider who becomes ready to leave at a random moment still catches the train that ends the gap they became ready in; only riders who pick a train in advance escape the bias. Standard deviations divide by <i>n</i>, so that the average gap times (1 + CV²) equals the riders' average exactly. The toy line in “Why trains bunch” is a simulation, not data.";
+  $("credits").innerHTML = "<b>Data.</b> Arrival times are from <a href='https://subwaydata.nyc' target='_blank' rel='noopener'>subwaydata.nyc</a>, which archives the MTA's realtime subway feeds and records when each train reached each stop. " + cap(NUMW[WEEKDAYS_N] || String(WEEKDAYS_N)) + " weekdays (" + DATESPAN + ") at every station each line serves (the page opens at one busy station per line, and comparisons between lines use those stations). A train's time at a stop is the feed's last estimate before the stop dropped off its schedule, accurate to roughly half a minute. Records where a train's planned stops vanished before it got there, without the train continuing down the line, are dropped. Gaps that overlap an outage in the feed, or that run past either end of the time window, are left out; long gaps are likelier to do either, so this trims a few long gaps. About " + Math.round(100 * (META.coverage ?? 0.06)) + "% of the trains in the timetable do not appear in the record: some were cancelled, and others ran but were missed by the tracking, so the measured gaps may run slightly long. The train graph shows one morning, " + dayLong(MAREY_IDX) + "." + (META.built ? " Data through " + dayLong(DAYS.length - 1) + ", " + dateOf(DAYS[DAYS.length - 1]).getFullYear() + "." : "") + " The timetable is the MTA's published weekday GTFS schedule in effect for these dates. <b>Model.</b> Riders are assumed to arrive like darts: at a steady rate, at moments that have nothing to do with the trains. For the trains that actually ran, the average wait of such riders is exactly " + M`\sum h^2 / (2 \sum h)` + ", and nothing about how the trains behave has to be assumed; the trains' steadiness (stationarity) matters only when ten days are used to predict an eleventh. A countdown clock lets a rider spend less of the wait on the platform, but a rider who becomes ready to leave at a random moment still catches the train that ends the gap they became ready in; only riders who pick a train in advance escape the bias. Standard deviations divide by <i>n</i>, so that the average gap times (1 + CV²) equals the riders' average exactly. The loop line in “Why trains bunch” is a simulation, not data.";
 
   // =====================================================================
   // wiring
@@ -234,17 +241,19 @@
   register("bunch", () => { drawRing(); drawBunchChart(); if (BS.running) bunchKick(); }); watch($("cv-ring"), "bunch");
   let lastLD = "";
   onState(() => {
-    const ld = ST.line + ST.dir;
+    const ld = ST.line + ST.dir + ST.stop;
     heroSync();
     if (ld !== lastLD) { lastLD = ld; animateMarey(); } else drawMarey();
     ridersSetup(); sawSetup(); CHAOS.user = false; GU.t = 0;
     if (MX.fam === "line") { MX.level = 0; MX.shown = 0; MX.xmax = null; mxParams(); }
-    ["strip", "hgaps", "riders", "pair", "crowd", "saw", "three", "chaos", "giveup", "lines", "cvrows", "machine", "hole", "trim", "cloud"].forEach(redraw);
+    ["strip", "hgaps", "riders", "pair", "crowd", "saw", "three", "chaos", "giveup", "lines", "cvrows", "machine", "hole", "trim", "cloud", "proof", "down"].forEach(redraw);
   });
   let rz = 0;
   window.addEventListener("resize", () => { clearTimeout(rz); rz = setTimeout(() => { drawMarey(); drawRuler(); redrawAll(); }, 120); });
   if (window.matchMedia) window.matchMedia("(prefers-color-scheme: dark)").addEventListener("change", () => { if (!document.documentElement.getAttribute("data-theme")) { readTheme(); drawMarey(); drawRuler(); redrawAll(); } });
-  setState({});
+  // open on the station in the address (a shared link), or the default
+  { const q = readHash(), { stop, ...rest } = q; setState(rest); STATE_READY = true;
+    if (stop && stop !== ST.stop) choose({ stop }); else writeHash(); }
   if (document.fonts && document.fonts.ready) document.fonts.ready.then(() => { drawMarey(); drawRuler(); redrawAll(); });
 })();
 </script>

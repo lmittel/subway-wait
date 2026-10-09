@@ -13,7 +13,7 @@
     // stack the waits: each rider takes the lowest free lane, so the stack's height is the crowd on the platform
     const ends = []; RAIN.list.forEach((r) => { let k = 0; while (ends[k] != null && ends[k] > r.t) k++; r.lane = k; ends[k] = r.nx; });
     RAIN.lanes = ends.length;
-    RAIN.key = ST.line + ST.dir; cancelAnimationFrame(RAIN.raf);
+    RAIN.key = ST.line + ST.dir + ST.stop; cancelAnimationFrame(RAIN.raf);
     if (RM) { RAIN.t = 99; drawMarey(); return; }
     const t0 = performance.now(), end = 0.8 + Math.max(...RAIN.list.map((r) => r.nx - r.t)) / RAIN_SPEED + 0.1;
     const step = (now) => { RAIN.t = (now - t0) / 1000; drawMarey(); if (RAIN.t < end) RAIN.raf = requestAnimationFrame(step); };
@@ -25,7 +25,7 @@
     const cv = $("cv-marey"), box = cv.parentElement, H = Math.max(300, Math.round(box.clientHeight || 420));
     const { ctx, W } = fit(cv, H);
     const m = MAR[ST.line][ST.dir];
-    if (!m) return;
+    if (!m || !m.trips.length) { text(ctx, "No train graph for this platform on " + dayLong(MAREY_IDX) + " morning.", 16, 40, 14, "#9aa1a6", "left", 500); $("marey-cap").textContent = ""; return; }
     const narrow = W < 560, x0 = narrow ? 6 : Math.min(200, Math.round(W * 0.25)), x1 = W - 8, y0 = 12, y1 = H - 34;
     const tA = 6 * 3600, tB = 10.5 * 3600, sx = (t) => x0 + (t - tA) / (tB - tA) * (x1 - x0);
     const kmMax = m.km[m.km.length - 1] || 1, up = ST.dir === "N";
@@ -54,7 +54,7 @@
     m.trips.forEach((pts) => { ctx.beginPath(); pts.forEach(([k, t], i) => { const x = sx(t), y = ys[k]; if (i) ctx.lineTo(x, y); else ctx.moveTo(x, y); }); ctx.stroke(); });
     ctx.restore();
     // riders' waits, drawn just above the platform
-    if (RAIN.list.length && RAIN.key === ST.line + ST.dir) {
+    if (RAIN.list.length && RAIN.key === ST.line + ST.dir + ST.stop) {
       const lh = Math.min(3, Math.max(1.6, Math.min(90, (ys[here] - y0) * 0.7) / Math.max(1, RAIN.lanes))), live = [];
       RAIN.list.forEach((r) => { const el = (RAIN.t - r.d) * RAIN_SPEED; if (el > 0) live.push([sx(r.t), sx(Math.min(r.nx, r.t + el)), ys[here] - 4 - (r.lane + 0.5) * lh]); });
       ctx.lineCap = "butt"; ctx.lineWidth = Math.max(1, lh - 0.7); ctx.strokeStyle = "rgba(255,138,51,.95)"; ctx.beginPath();
@@ -66,7 +66,7 @@
     ctx.fillStyle = C.edge;
     m.trips.forEach((pts) => { const p = pts.find(([k]) => k === here); if (p && sx(p[1]) <= clipX) { ctx.beginPath(); ctx.arc(sx(p[1]), ys[here], 3.3, 0, 6.283); ctx.fill(); } });
     if (narrow) halo(ctx, stationName(ST.line), x0 + 4, ys[here] + 17, 12, C.edge, "left", 700, C.tunnel);
-    $("marey-cap").textContent = "Every " + trainsPhrase(ST.line, ST.dir).replace(" trains", " train").replace(/^(Uptown|Downtown)/, (w) => w.toLowerCase()) + ", " + dayLong(MAREY_IDX) + ", " + dateOf(MAREY_DAY).getFullYear() + ", 6–10:30 am. Yellow: your platform." + (RAIN.list.length && RAIN.key === ST.line + ST.dir ? " Orange: each stroke is one rider's wait; stacked, they are the crowd on the platform." : "");
+    $("marey-cap").textContent = "Every " + trainsPhrase(ST.line, ST.dir).replace(" trains", " train").replace(/^(Uptown|Downtown)/, (w) => w.toLowerCase()) + ", " + dayLong(MAREY_IDX) + ", " + dateOf(MAREY_DAY).getFullYear() + ", 6–10:30 am. Yellow: your platform." + (RAIN.list.length && RAIN.key === ST.line + ST.dir + ST.stop ? " Orange: each stroke is one rider's wait; stacked, they are the crowd on the platform." : "");
   }
   function animateMarey() {
     if (RM) { HERO.prog = 1; drawMarey(); return; }
@@ -92,30 +92,19 @@
     const g = +inp.value, gx = sx(g);
     ctx.fillStyle = C.led; ctx.shadowColor = "rgba(255,122,26,.6)"; ctx.shadowBlur = 8; ctx.fillRect(gx - 2, 18, 4, base - 18); ctx.beginPath(); ctx.arc(gx, base, 6.5, 0, 6.283); ctx.fill(); ctx.shadowBlur = 0;
   }
-  // "Longer" widens when the answer is revealed, as far as the hero column allows (a little overhang is fine)
-  function stretchHeadline(on) {
-    const el = $("h-long"); if (!el) return;
-    if (!on) { el.style.fontVariationSettings = ""; el.classList.add("squeezed"); return; }
-    const avail = el.parentElement.getBoundingClientRect().width * 1.08, w0 = el.getBoundingClientRect().width;
-    el.style.fontVariationSettings = '"wdth" 112'; const w1 = el.getBoundingClientRect().width;
-    el.style.fontVariationSettings = ""; void el.offsetWidth; el.classList.remove("squeezed");
-    const target = w1 <= avail || w1 <= w0 ? 112 : Math.max(66, 66 + 46 * (avail - w0) / (w1 - w0));
-    el.style.fontVariationSettings = '"wdth" ' + target.toFixed(1);
-  }
   function heroSync() {
     const s = S(); if (!s) return;
     $("hero-q").innerHTML = "<b>" + trainsPhrase(ST.line, ST.dir) + "</b> reach " + stationName(ST.line) + " every <b>" + fmt(s.mu) + " minutes</b> on average, " + WINPHRASE[ST.win] + ". You step onto the platform at a random moment. How long do you wait, on average?";
     const inp = $("guess"), mx = Math.max(6, Math.ceil(Math.max(s.EW, s.mu) * 1.5));
     inp.max = mx; if (!HERO.touched) inp.value = (Math.round(s.half * 10) / 10).toFixed(1);
     $("guess-v").textContent = (+inp.value).toFixed(1) + " min";
-    HERO.revealed = false; stretchHeadline(false); $("guess-out").innerHTML = ""; $("guess-go").textContent = "Check my guess";
+    HERO.revealed = false; $("guess-out").innerHTML = ""; $("guess-go").textContent = "Check my guess";
     RAIN.list = []; cancelAnimationFrame(RAIN.raf);
     drawRuler();
   }
   $("guess").addEventListener("input", () => { HERO.touched = true; $("guess-v").textContent = (+$("guess").value).toFixed(1) + " min"; drawRuler(); });
   $("guess-go").addEventListener("click", () => {
     const s = S(); if (!s) return; HERO.revealed = true; drawRuler(); startRain();
-    stretchHeadline(true);   // the headline answers too: the wait is longer
     const g = +$("guess").value, pct = Math.round((s.EW / s.half - 1) * 100);
     const verdict = Math.abs(g - s.EW) < 0.25 ? "You got it." : g < s.EW ? "Your guess is " + fmt(s.EW - g) + " min short." : "Your guess is " + fmt(g - s.EW) + " min long.";
     $("guess-out").innerHTML = "On average you wait <b>" + fmt(s.EW) + " minutes</b>, " + pct + "% more than half the average gap. " + verdict + " The gap you walk into tends to be one of the long ones.";
@@ -176,7 +165,7 @@
   // =====================================================================
   const RID = { key: "", rows: [], total: 0, n: 0, running: false, fly: [], rng: mulberry(11), rate: 0, last: 0, raf: 0, mode: "moment", gaps: 0 };
   function ridersSetup(force) {
-    const key = ST.line + ST.dir + ST.win; if (!force && key === RID.key) return; RID.key = key;
+    const key = ST.line + ST.dir + ST.stop + ST.win; if (!force && key === RID.key) return; RID.key = key;
     RID.rows = []; RID.total = 0; RID.gaps = 0; RID.n = 0; RID.fly = []; RID.rng = mulberry(11); RID.rate = 0;
     DAYINFO.forEach((di, k) => {
       if (!di.weekday) return;

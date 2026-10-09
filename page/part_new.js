@@ -5,7 +5,7 @@
   const lcPhrase = (r, d) => (r === "GS" ? "the 42 St Shuttle" : trainsPhrase(r, d).replace(/^(Uptown|Downtown)/, (w) => w.toLowerCase()));
   const looks = (r) => (r === "GS" ? " looks" : " look");
   function cvRows() {
-    const key = ST.line + ST.dir + ST.win; if (CVM.key === key && CVM.rows) return CVM.rows; CVM.key = key;
+    const key = ST.line + ST.dir + ST.stop + ST.win; if (CVM.key === key && CVM.rows) return CVM.rows; CVM.key = key;
     const all = [];
     LINES.forEach((r) => ["N", "S"].forEach((d) => {
       if (!SER[r][d] || (r === "GS" && d === "S")) return;
@@ -52,10 +52,9 @@
   // IS THAT GAP REAL? the train graph around the morning's longest gap, and what deleting long gaps would do
   // =====================================================================
   // from the full archive: trains recorded at the stations on both sides of the platform but not at the platform
-  const MISSED = META.missed || {};
   function drawHole() {
     const cv = $("cv-hole"), Wd = cv.clientWidth || 800, narrow = Wd < 560, { ctx, W, H } = fit(cv, 320), m = MAR[ST.line][ST.dir];
-    const miss = MISSED[ST.line + ST.dir] || 0, missNote = () => "Across all " + (NUMW[WEEKDAYS_N] || WEEKDAYS_N) + " days we found " + (miss ? "only " + miss + " train" + (miss > 1 ? "s" : "") : "no train") + " recorded at the neighbouring station" + (m && m.stops.length > 2 ? "s" : "") + " but missing at " + stationName(ST.line) + ". Gaps that overlap an outage in the data feed are dropped.";
+    const miss = hiddenAt(ST.line, ST.dir), missNote = () => "Across all " + (NUMW[WEEKDAYS_N] || WEEKDAYS_N) + " days we found " + (miss ? "only " + miss + " train" + (miss > 1 ? "s" : "") : "no train") + " recorded at the neighbouring station" + (m && m.stops.length > 2 ? "s" : "") + " but missing at " + stationName(ST.line) + ". Gaps that overlap an outage in the data feed are dropped.";
     if (!m || m.trips.length < 2) { caption(cv, "This line's train graph is too short to show a gap with its neighbours."); $("n-hole").innerHTML = missNote(); return; }
     const pt = platformTimes(m); let best = -1, bg = 0;
     for (let i = 0; i + 1 < pt.length; i++) { if (pt[i] < 6 * 3600 + 900 || pt[i + 1] > 10.5 * 3600 - 900) continue; const g = pt[i + 1] - pt[i]; if (g > bg) { bg = g; best = i; } }
@@ -101,7 +100,7 @@
   const TR = { x: null, key: "" };
   function drawTrim() {
     const h = pooled(ST.line, ST.dir, ST.win), s = stats(h); if (!s) return;
-    const key = ST.line + ST.dir + ST.win, inp = $("tr-x"), hmax = s.max, lo = Math.max(1, Math.floor(quant(h, 0.5) * 2) / 2), hi = Math.ceil(hmax * 2) / 2 + 0.5;
+    const key = ST.line + ST.dir + ST.stop + ST.win, inp = $("tr-x"), hmax = s.max, lo = Math.max(1, Math.floor(quant(h, 0.5) * 2) / 2), hi = Math.ceil(hmax * 2) / 2 + 0.5;
     if (TR.key !== key) { TR.key = key; TR.x = Math.max(lo, Math.round(quant(h, 0.95) * 2) / 2); }
     inp.min = lo; inp.max = hi; inp.value = TR.x; TR.x = +inp.value; $("tr-x-v").textContent = TR.x >= hmax ? "keep all" : TR.x.toFixed(1) + " min";
     const trimmed = (x) => { let n = 0, a = 0, b = 0; for (const v of h) if (v <= x) { n++; a += v; b += v * v; } return { n, mu: a / n, EW: b / (2 * a) }; };
