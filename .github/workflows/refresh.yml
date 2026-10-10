@@ -4,10 +4,9 @@ on:
   workflow_dispatch:          # the "Run workflow" button
   # Every Tuesday to Saturday at 13:30 UTC (9:30 am New York in summer, 8:30 am in winter),
   # after subwaydata.nyc posts the previous day's archive around 7 am.
-  # Left off until subwaydata.nyc's maintainer has said a daily download is fine. To switch on,
-  # delete the # in front of the next two lines.
-  # schedule:
-  #   - cron: "30 13 * * 2-6"
+  # Switched on 2026-10-10 after subwaydata.nyc's maintainer said a daily download is fine.
+  schedule:
+    - cron: "30 13 * * 2-6"
 
 permissions:
   contents: read
